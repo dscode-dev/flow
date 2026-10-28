@@ -1,0 +1,43 @@
+name: PR-00 foundation
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: foundation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - run: make backend-check contracts sqlc
+      - run: git diff --exit-code -- backend/internal/platform/database/dbgen
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+      - run: make mobile-check
+      - run: dart format --output=none --set-exit-if-changed apps/mobile/lib apps/mobile/test
+  infrastructure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: make up
+      - run: make smoke
+      - if: always()
+        run: docker compose --env-file .env -f infra/compose/compose.yaml down

@@ -1,0 +1,97 @@
+name: ${COMPOSE_PROJECT_NAME:-flow}
+services:
+  postgres:
+    image: postgis/postgis:18-3.6
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-flow}
+      POSTGRES_USER: ${POSTGRES_USER:-flow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Execute scripts/init-env.sh}
+    ports: ['${HOST_BIND:-127.0.0.1}:${POSTGRES_PORT:-15432}:5432']
+    volumes: [postgres-data:/var/lib/postgresql]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [flow]
+  redis:
+    image: redis:8.2.2-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Execute scripts/init-env.sh}
+    command: [sh, -c, 'exec redis-server --requirepass "$$REDIS_PASSWORD" --appendonly yes']
+    ports: ['${HOST_BIND:-127.0.0.1}:${REDIS_PORT:-16379}:6379']
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [flow]
+  rabbitmq:
+    image: rabbitmq:4.2.0-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-flow}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Execute scripts/init-env.sh}
+    ports:
+      - '${HOST_BIND:-127.0.0.1}:${RABBITMQ_PORT:-15672}:5672'
+      - '${HOST_BIND:-127.0.0.1}:${RABBITMQ_MANAGEMENT_PORT:-15673}:15672'
+    volumes: [rabbitmq-data:/var/lib/rabbitmq]
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    networks: [flow]
+  migrate:
+    build:
+      context: ../..
+      dockerfile: infra/docker/api.Dockerfile
+    command: [/app/migrate, up]
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-flow}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-flow}?sslmode=disable
+      MIGRATIONS_DIR: /app/migrations
+    depends_on:
+      postgres: {condition: service_healthy}
+    networks: [flow]
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/api.Dockerfile
+    environment:
+      FLOW_ENV: ${FLOW_ENV:-development}
+      HTTP_ADDR: ':8080'
+      DATABASE_URL: postgres://${POSTGRES_USER:-flow}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-flow}?sslmode=disable
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-flow}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      HTTP_MAX_BODY_BYTES: ${HTTP_MAX_BODY_BYTES:-1048576}
+      DEPENDENCY_TIMEOUT: ${DEPENDENCY_TIMEOUT:-2s}
+      SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT:-10s}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    ports: ['${HOST_BIND:-127.0.0.1}:${API_PORT:-18080}:8080']
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+      rabbitmq: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, /app/probe, 'http://127.0.0.1:8080/readyz']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    stop_grace_period: 20s
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [flow]
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.136.0
+    profiles: [observability]
+    command: [--config=/etc/otelcol/config.yaml]
+    volumes: ['../observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro']
+    networks: [flow]
+volumes:
+  postgres-data:
+  redis-data:
+  rabbitmq-data:
+networks:
+  flow:

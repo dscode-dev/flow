@@ -1,0 +1,93 @@
+openapi: 3.0.3
+info:
+  title: Flow — fundação HTTP
+  version: 0.1.0
+  description: Somente probes operacionais. Contratos de negócio serão definidos por ciclo.
+servers:
+  - url: /
+paths:
+  /healthz:
+    get:
+      operationId: health
+      security: []
+      summary: Liveness do processo, independente das dependências
+      responses:
+        default:
+          $ref: '#/components/responses/Error'
+        '200':
+          description: Processo vivo
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                additionalProperties: false
+                properties:
+                  status: {type: string, enum: [alive]}
+  /readyz:
+    get:
+      operationId: readiness
+      security: []
+      summary: PostgreSQL, Redis e RabbitMQ acessíveis; falso durante encerramento
+      responses:
+        default:
+          $ref: '#/components/responses/Error'
+        '200':
+          description: Pronto
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                additionalProperties: false
+                properties:
+                  status: {type: string, enum: [ready]}
+        '503':
+          description: Dependência indisponível ou encerramento
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+components:
+  responses:
+    Error:
+      description: Erro sanitizado, incluindo método ou corpo não permitido
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  headers:
+    RequestID:
+      description: Correlação opaca, sem identidade de usuário
+      schema: {type: string, minLength: 8, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$'}
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Reservado para PR-01; nenhum emissor ou validador implementado.
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          additionalProperties: false
+          properties:
+            code: {type: string}
+            message: {type: string}
+            request_id: {type: string}

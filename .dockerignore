@@ -1,0 +1,7 @@
+**
+!backend/
+!backend/**
+backend/bin
+!infra/
+!infra/docker/
+!infra/docker/**

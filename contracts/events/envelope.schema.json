@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:flow:events:envelope:v1",
+  "title": "Flow integration event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "schema_version", "aggregate_id", "occurred_at", "payload"],
+  "properties": {
+    "event_id": {"type": "string", "format": "uuid"},
+    "event_type": {"type": "string", "pattern": "^[a-z]+\\.[a-z_]+$", "maxLength": 150},
+    "schema_version": {"type": "integer", "minimum": 1},
+    "aggregate_id": {"type": "string", "format": "uuid"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "correlation_id": {"type": "string", "maxLength": 64},
+    "payload": {"type": "object"}
+  }
+}
