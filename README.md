@@ -1,6 +1,6 @@
 # Flow V1 — fundação e Identity
 
-Flow é uma implementação nova, por decisão de produto no [ADR 0005](docs/decisions/0005-fresh-flow.md), sem migração ou dependência do Rolezin. PR-00 entrega fundação Go/Flutter; PR-01.A entrega Identity por PHONE/GOOGLE/APPLE. Telas e integração Flutter pertencem ao PR-01.B. Ver [Identity](docs/features/identity.md), [contratos mobile](docs/features/identity-mobile-integration.md) e [relatório PR-01.A](docs/architecture/pr-01a-completion-report.md).
+Flow é uma implementação nova, por decisão de produto no [ADR 0005](docs/decisions/0005-fresh-flow.md), sem migração ou dependência do Rolezin. PR-00 entrega fundação Go/Flutter; PR-01.A entrega Identity por PHONE/GOOGLE/APPLE; PR-01.B implementa autenticação Flutter, onboarding e sessão segura, com configuração/homologação externas pendentes. Ver [Identity](docs/features/identity.md), [contratos mobile](docs/features/identity-mobile-integration.md), [configuração/roteiro físico](docs/features/mobile-authentication.md) e [relatório PR-01.A](docs/architecture/pr-01a-completion-report.md).
 
 ## Requisitos
 

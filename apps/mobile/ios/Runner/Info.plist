@@ -24,6 +24,10 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<!-- Configured by Flutter/Auth.local.xcconfig after approval of the iOS client. -->
+	<key>CFBundleURLTypes</key>
+	<array><dict><key>CFBundleTypeRole</key><string>Editor</string>
+	<key>CFBundleURLSchemes</key><array><string>$(FLOW_GOOGLE_REVERSED_CLIENT_ID)</string></array></dict></array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

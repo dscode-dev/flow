@@ -21,3 +21,4 @@ apps/mobile/**/ephemeral/
 *.jks
 *.p12
 *.mobileprovision
+apps/mobile/ios/Flutter/Auth.local.xcconfig

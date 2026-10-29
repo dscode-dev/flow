@@ -25,6 +25,8 @@ abstract final class FlowTheme {
         labelLarge: FlowTypography.label,
       ),
       inputDecorationTheme: InputDecorationTheme(
+        helperMaxLines: 4,
+        errorMaxLines: 4,
         filled: true,
         border: border,
         enabledBorder: border.copyWith(
@@ -46,6 +48,17 @@ abstract final class FlowTheme {
             borderRadius: BorderRadius.circular(FlowRadius.control),
           ),
         ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(FlowRadius.control),
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
         showDragHandle: true,

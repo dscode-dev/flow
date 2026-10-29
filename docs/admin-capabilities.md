@@ -161,3 +161,13 @@ Módulo: Identity/Privacy. **Todas as capacidades abaixo exigem** ambiente/escop
 - **Ações operacionais:** rotação de chaves do fornecedor é suportada pela biblioteca JWKS; migração de App ID/equipe Apple ou fluxo OAuth exige revisão própria.
 - **Privacidade/segurança:** não confiar em e-mail, nonce externo arbitrário ou token de outro app. Nenhum certificado/chave privada é exibido por suporte.
 - **Status:** enforcement/adapters implementados; configuração e validação externas pendentes do proprietário.
+
+## ADM-013 — Suporte à autenticação mobile
+
+- **Feature/recurso:** PR-01.B / inicialização, providers, rotação, onboarding e saída.
+- **Operações/permissões:** futura leitura de diagnóstico categórico com `identity.mobile.diagnostics.read`, separada de revogação e de mudança de configuração. Nenhuma API/tela admin criada neste PR.
+- **Auditoria:** ator/caso/request_id/ambiente/versão/resultado mínimo; leitura futura deve ser auditada. Nunca solicitar OTP, refresh, ID token, nome/e-mail social ou dump do Keychain.
+- **Fluxo de suporte:** distinguir configuração incompleta, cancelamento, quota, falha de entrega observada, refresh ambíguo, armazenamento seguro indisponível, revogação e restrição de conta. Orientar reautenticação após refresh ambíguo, sem tentar recuperar/reusar segredo antigo. Falha no armazenamento requer limpeza local explícita; logout offline não garante revogação remota.
+- **Onboarding:** handle_unavailable não autoriza reserva/transferência por suporte; onboarding_required é decidido pelo backend. Cadastro/login uniforme não expõe existência de conta. Não unir contas por e-mail, telefone alegado ou nome.
+- **Operação:** verificar bundle/package, audiences/azp, SHA-1, callback iOS, capability/provisioning Apple e origem API no ambiente certo. Credenciais/alterações continuam sob processo operacional, nunca botão de bypass. Apple Android está fora do fluxo web neste ciclo.
+- **Status:** diagnósticos seguros no cliente e roteiro físico documentados; painéis, permissões e UI administrativas são futuros. Homologação externa de SMS/Google/Apple e aprovações de marca/privacidade pendentes.

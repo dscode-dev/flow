@@ -21,7 +21,7 @@ migrate-down:
 backend-check:
 	cd backend && test -z "$$(gofmt -l cmd internal)" && go vet ./... && go test ./...
 mobile-check:
-	cd apps/mobile && $(FLUTTER) pub get --enforce-lockfile && $(FLUTTER) analyze && $(FLUTTER) test test/widget_test.dart
+	cd apps/mobile && $(FLUTTER) pub get --enforce-lockfile && $(FLUTTER) analyze && $(FLUTTER) test
 contracts:
 	cd backend && go run ./cmd/contractcheck
 sqlc:

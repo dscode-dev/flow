@@ -1,6 +1,6 @@
 # Integração exata do PR-01.B
 
-Backend entregue no PR-01.A. Fonte de verdade dos schemas: `contracts/openapi/flow.yaml`. Este documento especifica comportamento do cliente; nenhuma tela, SDK OAuth Flutter ou teste físico foi implementado/executado neste ciclo.
+Backend entregue no PR-01.A. Fonte de verdade dos schemas: `contracts/openapi/flow.yaml`. Este documento especifica o contrato entregue no ciclo backend. O PR-01.B agora implementa telas/SDKs Flutter; detalhes e pendências em [mobile-authentication.md](mobile-authentication.md). Nenhum teste físico foi executado.
 
 ## Regras comuns
 

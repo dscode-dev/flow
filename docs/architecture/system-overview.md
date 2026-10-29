@@ -49,4 +49,4 @@ Sem autenticação real, CRUD, uploads, admin, chat, notificações ou P2P. O am
 
 ## Evolução PR-01.A
 
-Identity funcional foi acrescentado ao mesmo monólito: três métodos, contas/perfil mínimo, sessão opaca rotativa, reauth/vínculo/unlink, auditoria e webhook Apple. Esquema identity e outbox são transacionais; Redis não é autoridade de acesso ou quotas. Consulte `docs/features/identity.md` para a arquitetura vigente desse módulo. Telas permanecem no ciclo PR-01.B; sem legado conforme ADR 0005. Nenhum serviço deployável adicional foi criado.
+Identity funcional foi acrescentado ao mesmo monólito: três métodos, contas/perfil mínimo, sessão opaca rotativa, reauth/vínculo/unlink, auditoria e webhook Apple. Esquema identity e outbox são transacionais; Redis não é autoridade de acesso ou quotas. Consulte `docs/features/identity.md` para a arquitetura vigente desse módulo. PR-01.B implementa as telas Flutter, providers nativos, onboarding e sessão segura conforme ADR 0008; configuração/homologação externas pendentes. Sem legado conforme ADR 0005. Nenhum serviço deployável adicional foi criado.
