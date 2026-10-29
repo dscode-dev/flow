@@ -76,3 +76,10 @@ make sqlc
 `identity-test` usa exclusivamente banco separado `flow_identity_test`, PostgreSQL real e HTTP real; para Redis da stack temporariamente e o restaura. Upstreams Twilio/Google/Apple são controlados somente em testes. O comando recria schemas no banco de teste, nunca no banco principal. Testes criptográficos usam par RSA de fixture, sem vínculo com provedores reais. Testes físicos e telas não fazem parte de PR-01.A.
 
 Retenção operacional: com política revisada, agendar `/app/identity-retention` diariamente na mesma imagem, com DATABASE_URL injetada e papel autorizado. Não é um serviço adicional ou endpoint HTTP. Ele respeita a janela de refresh até expiração absoluta +30 dias e não apaga contas, identidades ou eventos pendentes.
+
+
+## Fechamento Identity — PR-01.C
+
+Revisão/correções de sessão e validação entre cliente/API estão em [relatório PR-01.C](docs/architecture/pr-01c-completion-report.md). [Configuração por ambiente e checklist externo](docs/features/authentication-release-readiness.md) distinguem estrutura, testes locais, simulador, aparelhos, provedores e CI. IDs finais, marca, URLs e credenciais ainda serão criados pelo proprietário; não há aceite integral de produção.
+
+`make auth-readiness` retorna pendências de configuração sem expor segredos. `make identity-mobile-contract FLUTTER=/caminho/do/sdk/bin/flutter` valida Flutter/Dio contra Go HTTP/OpenAPI e PostgreSQL isolado com upstreams de fixture; não faz SMS/OAuth real. O smoke em `apps/mobile/integration_test/auth_native_test.dart` exige simulador limpo. Nenhuma associação de domínio ou identificador final é presumido.

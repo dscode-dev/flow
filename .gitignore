@@ -22,3 +22,5 @@ apps/mobile/**/ephemeral/
 *.p12
 *.mobileprovision
 apps/mobile/ios/Flutter/Auth.local.xcconfig
+apps/mobile/config/*.local.json
+__pycache__/

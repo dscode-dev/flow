@@ -39,7 +39,7 @@ Backend entregue no PR-01.A. Fonte de verdade dos schemas: `contracts/openapi/fl
 
 `POST /v1/auth/refresh` com `{refresh_token}`. Serializar por sessão, com exatamente uma requisição de refresh em voo. Ao receber 200, substituir o refresh no armazenamento seguro de forma atômica antes de liberar novas tentativas. Não repetir refresh antigo em timeout ambíguo: reuso com segredo correto revoga a família inteira, incluindo o par recém-emitido. Nesse caso reiniciar autenticação por provedor.
 
-`POST /v1/auth/logout` com bearer atual → 204. Limpar armazenamento local mesmo que receba 401 (sessão já revogada). Não confundir ausência de rede com revogação comprovada no servidor; saída local deve limpar segredos e informar limitação de rede quando necessário. Não existe logout por simples device_id fornecido pelo cliente.
+`POST /v1/auth/logout` com bearer atual → 204. Limpar armazenamento local mesmo que receba 401; ele também pode indicar access expirado e não comprova revogação da família. No PR-01.C, o cliente pode renovar uma única vez para concluir logout, somente quando o refresh não estava em voo e a credencial antiga já foi removida do disco. Timeout/refresh ambíguo não é repetido. Não confundir ausência de rede com revogação comprovada no servidor; saída local deve limpar segredos e informar limitação de rede quando necessário. Não existe logout por simples device_id fornecido pelo cliente.
 
 Sessões possuem expiração absoluta, não estendida pelo refresh. Access anterior pode coexistir até TTL, mas revogação/status sempre prevalecem no servidor. Ao receber session_limit, orientar uso de dispositivo ainda autenticado para revogar sessão ou seguir suporte conservador; não simular nova sessão.
 
@@ -72,3 +72,8 @@ Criar challenge com purpose reauth/link, bearer da sessão e provedor desejado. 
 3. Restaurar sessão pelo refresh single-flight; implementar rotação atômica, 401/403/409/429/503 e logout/expiração sem loops. Nunca tratar token externo como bearer Flow.
 4. Homologar credenciais reais e delivery SMS, login Google/Apple e notificações Apple em ambiente apropriado; separar isso dos testes locais aprovados. Nenhum teste físico foi feito em PR-01.A.
 5. Revisar avisos de privacidade, política de menores, finalidade/base legal, orçamento SMS, suporte e retenção antes de onboarding real. LGPD não é presumida pela implementação técnica.
+
+
+## Verificação e configuração PR-01.C
+
+[Readiness e checklist externo](authentication-release-readiness.md) registra IDs, signing, callbacks, secrets, marca, URLs e roteiro de homologação. `make identity-mobile-contract` verifica o cliente Flutter/Dio/AuthController contra Go/OpenAPI/PostgreSQL reais com fornecedores de fixture exclusivamente no binário de teste; não comprova SMS/OAuth reais. O smoke nativo roda em simulador limpo, sem login de provedor. Evidências são separadas em [relatório PR-01.C](../architecture/pr-01c-completion-report.md).

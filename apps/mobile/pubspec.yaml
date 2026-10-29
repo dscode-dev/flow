@@ -21,6 +21,8 @@ dependencies:
   sign_in_with_apple: ^8.2.0
   url_launcher: ^6.3.2
 dev_dependencies:
+  integration_test:
+    sdk: flutter
   sign_in_with_apple_platform_interface: ^2.0.0
   flutter_test:
     sdk: flutter

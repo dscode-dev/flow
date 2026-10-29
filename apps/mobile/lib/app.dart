@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,15 +15,26 @@ class FlowApp extends ConsumerStatefulWidget {
 }
 
 class _FlowAppState extends ConsumerState<FlowApp> with WidgetsBindingObserver {
+  static const _nativeAuth = MethodChannel('flow/auth_configuration');
+  bool _observesNativeAuth = false;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      _observesNativeAuth = true;
+      _nativeAuth.setMethodCallHandler((call) async {
+        if (mounted && call.method == 'appleCredentialChanged') {
+          await ref.read(authControllerProvider).appleCredentialChanged();
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    if (_observesNativeAuth) _nativeAuth.setMethodCallHandler(null);
     super.dispose();
   }
 

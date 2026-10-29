@@ -1,9 +1,11 @@
 import Flutter
 import UIKit
+import AuthenticationServices
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var authConfigurationChannel: FlutterMethodChannel?
+  private var appleRevocationObserver: NSObjectProtocol?
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -28,5 +30,15 @@ import UIKit
       result(schemes.contains(expected))
     }
     authConfigurationChannel = channel
+    if let observer = appleRevocationObserver {
+      NotificationCenter.default.removeObserver(observer)
+    }
+    appleRevocationObserver = NotificationCenter.default.addObserver(
+      forName: ASAuthorizationAppleIDProvider.credentialRevokedNotification,
+      object: nil, queue: .main
+    ) { [weak self] _ in
+      // No provider subject or notification payload crosses into Flutter.
+      self?.authConfigurationChannel?.invokeMethod("appleCredentialChanged", arguments: nil)
+    }
   }
 }

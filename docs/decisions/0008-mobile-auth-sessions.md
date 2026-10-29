@@ -31,3 +31,10 @@ Refresh é single-flight. Antes da chamada, sobrescrevemos o registro com `{v:1,
 Bootstrap sem perfil confirmado fica no gate. Revalidação/refresh com perfil já conhecido mantém formulário/shell, preservando dados em memória; envio de formulário e chamadas protegidas aguardam persistência. Refresh de restauração não tem perfil e continua no gate. Só `/app` é destino protegido aprovado neste ciclo, sem query/fragment/returnTo externo. Novas rotas exigirão ampliar explicitamente a allowlist; não há domínios de universal/app links fictícios. Onboarding usa apenas display_name/handle e a resposta Go; conflito mantém formulário, confirmação libera shell identificado como desenvolvimento.
 
 Vínculo/reauth não usam o fluxo de login: serão coordenadores separados em configurações, com bearer, purpose link/reauth, prova nova, recent-auth e erros de ownership. Este PR não cria UI nem inferência de merge por e-mail/telefone.
+
+
+## Revisão PR-01.C
+
+Single-flight de refresh/logout é registrado antes de qualquer notificação de estado. O logout remove o segredo persistido antes de usar refresh diretamente para revogação, sem guardar o token novo; essa operação só acontece uma vez e se não havia outra renovação em voo. 401 não comprova revogação: tentar concluir com bearer novo apenas nessas condições, caso contrário informar ausência de confirmação. Escritas gerais não mudam sua política de não repetição.
+
+Falha de persistência e resultado descartado tentam revogar a sessão emitida usando seu access, sem retry. Mutações de onboarding são vinculadas à geração, e publicação pós-consulta Apple reconfirma essa geração. Observer nativo Apple comunica somente sinal de mudança ao coordenador; ele consulta CredentialState antes de encerrar sessão Apple. Teste de contrato real Flutter/Go/PostgreSQL e smoke de Keychain/guards em simulador têm evidência separada de homologação de fornecedor.

@@ -1,0 +1,10 @@
+{
+  "FLOW_ENV": "production",
+  "API_BASE_URL": "",
+  "GOOGLE_SERVER_CLIENT_ID": "",
+  "GOOGLE_IOS_CLIENT_ID": "",
+  "APPLE_SIGN_IN_ENABLED": false,
+  "TERMS_URL": "",
+  "PRIVACY_URL": "",
+  "LEGAL_LINKS_APPROVED": false
+}

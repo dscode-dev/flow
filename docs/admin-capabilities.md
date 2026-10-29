@@ -171,3 +171,10 @@ Módulo: Identity/Privacy. **Todas as capacidades abaixo exigem** ambiente/escop
 - **Onboarding:** handle_unavailable não autoriza reserva/transferência por suporte; onboarding_required é decidido pelo backend. Cadastro/login uniforme não expõe existência de conta. Não unir contas por e-mail, telefone alegado ou nome.
 - **Operação:** verificar bundle/package, audiences/azp, SHA-1, callback iOS, capability/provisioning Apple e origem API no ambiente certo. Credenciais/alterações continuam sob processo operacional, nunca botão de bypass. Apple Android está fora do fluxo web neste ciclo.
 - **Status:** diagnósticos seguros no cliente e roteiro físico documentados; painéis, permissões e UI administrativas são futuros. Homologação externa de SMS/Google/Apple e aprovações de marca/privacidade pendentes.
+
+
+### ADM-013 — complemento operacional PR-01.C
+
+Diagnóstico deve distinguir logout 204 de access 401/timeout e de limpeza local: 401 não comprova família revogada. Refresh interrompido não deve ser repetido por suporte. Falha de persistência pode exigir revogação da sessão recém-emitida; app tenta isso sem expor credencial. Observer Apple e revalidação continuam sujeitos à comprovação externa, não à presença de um entitlement.
+
+Readiness estrutural sem valores (`make auth-readiness`), fingerprints públicos da chave efetiva, commit/hash do artefato e evidências de cada categoria passam a compor a revisão operacional. Console Google/Apple/Twilio, secret injection e acesso privilegiado permanecem separados de suporte. Não pedir dumps do Keychain, JWT, OTP ou fotos do SMS. Não existe novo endpoint/UI/permissão administrativa neste PR; owners e verificações estão no relatório PR-01.C e no checklist de homologação.

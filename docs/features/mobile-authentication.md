@@ -39,3 +39,12 @@ Não ativar providers com placeholders. Dart defines de client IDs/origem não s
 8. VoiceOver/TalkBack, texto ampliado, temas, reduzir movimento, teclado, rotação e erro de rede em todas as telas. Deep link `/app` antes do login não mostra conteúdo, onboarding é obrigatório quando indicado; URLs externas/returnTo não são destinos de navegação.
 
 Build de simulador/test doubles não comprova SMS, consentimento OAuth, assinatura de distribuição nem entrega de webhook. Registrar aparelho/OS/ambiente e resultado de cada cenário quando realmente executado, sem capturar OTP/tokens/telefone/e-mail nos relatórios.
+
+
+## Fechamento PR-01.C
+
+A configuração final ainda será criada pelo proprietário. Consulte [configuração por ambiente e checklist de homologação](authentication-release-readiness.md). O template público `config/auth.public.example.json` não contém IDs/URLs inventados; `make auth-readiness` lista pendências sem mostrar valores secretos.
+
+Refresh instala o single-flight antes de notificar listeners. Logout também é single-flight: credencial local é removida primeiro; quando access expirou/retornou 401, pode renovar uma vez, apenas sem refresh anterior em voo e com limpeza local confirmada, para obter 204. Nunca repetir refresh ambíguo nem interpretar 401 sozinho como revogação. Se persistência do login falhar, tentar revogar o access já recebido; resposta atrasada também é descartada com tentativa de revogação, sem reabrir a navegação.
+
+A notificação Apple nativa em foreground aciona CredentialState no coordenador, sem payload/subject no canal. Consultas de retomada e publicação de onboarding validam a geração atual, para não sobrescrever uma sessão posterior. Provas reais de Apple/Google/SMS e aparelhos físicos continuam pendentes.

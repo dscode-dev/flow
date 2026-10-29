@@ -57,9 +57,10 @@ class AuthController extends ValueNotifier<AuthState> {
   AuthChallenge? _challenge;
   DateTime? _retryAt, _verifyRetryAt;
   int _generation = 0;
-  bool _disposed = false, _foreground = true, _onboardingBusy = false;
+  bool _disposed = false, _foreground = true;
+  int? _onboardingGeneration;
   Future<void> _writes = Future<void>.value();
-  Future<void>? _refreshFlight;
+  Future<void>? _refreshFlight, _logoutFlight;
   Timer? _expiry;
   void _emit(AuthState state) {
     if (!_disposed) value = state;
@@ -80,6 +81,7 @@ class AuthController extends ValueNotifier<AuthState> {
       e is AuthIssue ? e : const AuthIssue('unexpected');
   bool get canRequest =>
       !value.busy &&
+      _logoutFlight == null &&
       !{
         AuthStatus.error,
         AuthStatus.restricted,
@@ -90,9 +92,12 @@ class AuthController extends ValueNotifier<AuthState> {
       (_retryAt == null || !now().isBefore(_retryAt!));
   bool get canVerify =>
       !value.busy &&
+      _logoutFlight == null &&
       (_verifyRetryAt == null || !now().isBefore(_verifyRetryAt!));
   bool get canSubmit =>
-      !value.busy && (_retryAt == null || !now().isBefore(_retryAt!));
+      !value.busy &&
+      _logoutFlight == null &&
+      (_retryAt == null || !now().isBefore(_retryAt!));
   void _failure(Object error, {AuthStatus? status}) {
     final issue = _issue(error);
     if (issue.code == 'rate_limited') {
@@ -259,11 +264,7 @@ class AuthController extends ValueNotifier<AuthState> {
 
   Future<void> _accept(LoginResult result, int g, {String? appleUser}) async {
     if (!_current(g)) {
-      try {
-        await api.logout(result.access);
-      } catch (_) {
-        /* best effort for a discarded login */
-      }
+      await _discard(result);
       return;
     }
     final saved = StoredSession(
@@ -275,10 +276,14 @@ class AuthController extends ValueNotifier<AuthState> {
     try {
       await _save(saved.encode(), g);
     } catch (_) {
+      await _discard(result);
       if (_current(g)) await _end(AuthStatus.error, const AuthIssue('storage'));
       return;
     }
-    if (!_current(g)) return;
+    if (!_current(g)) {
+      await _discard(result);
+      return;
+    }
     _session = result;
     _stored = saved;
     _challenge = null;
@@ -287,14 +292,24 @@ class AuthController extends ValueNotifier<AuthState> {
     _publishUser(result.user);
   }
 
+  Future<void> _discard(LoginResult result) async {
+    // A server session exists even if persistence failed or logout won the race.
+    try {
+      await api.logout(result.access);
+    } catch (_) {
+      /* best effort, no retry */
+    }
+  }
+
   void _publishUser(FlowUser user) {
+    if (_disposed || _logoutFlight != null) return;
     _emit(
       AuthState(
         user.onboardingRequired
             ? AuthStatus.onboardingRequired
             : AuthStatus.authenticated,
         user: user,
-        busy: _onboardingBusy,
+        busy: _onboardingGeneration == _generation,
       ),
     );
     _schedule();
@@ -317,13 +332,16 @@ class AuthController extends ValueNotifier<AuthState> {
   }
 
   Future<void> refresh() {
+    if (_logoutFlight != null) return Future<void>.value();
     final existing = _refreshFlight;
     if (existing != null) return existing;
-    final flight = _rotate();
-    _refreshFlight = flight;
-    return flight.whenComplete(() {
+    late final Future<void> flight;
+    // Install the flight before _rotate can synchronously notify listeners.
+    flight = Future<void>.microtask(_rotate).whenComplete(() {
       if (identical(_refreshFlight, flight)) _refreshFlight = null;
     });
+    _refreshFlight = flight;
+    return flight;
   }
 
   Future<void> _rotate() async {
@@ -365,6 +383,7 @@ class AuthController extends ValueNotifier<AuthState> {
     bool replaySafe = false,
   }) async {
     final g = _generation;
+    if (_logoutFlight != null) throw const AuthIssue('canceled');
     if (_refreshFlight != null) await _refreshFlight;
     if (_session == null || !_current(g)) throw const AuthIssue('unauthorized');
     if (!now().isBefore(_session!.accessUntil)) await refresh();
@@ -412,9 +431,13 @@ class AuthController extends ValueNotifier<AuthState> {
   }
 
   Future<void> completeOnboarding(String name, String handle) async {
-    if (!canSubmit || _onboardingBusy || _session == null) return;
-    _onboardingBusy = true;
+    if (!canSubmit ||
+        _onboardingGeneration == _generation ||
+        _session == null) {
+      return;
+    }
     final g = _generation;
+    _onboardingGeneration = g;
     final user = value.user;
     _emit(AuthState(AuthStatus.onboardingRequired, user: user, busy: true));
     try {
@@ -423,7 +446,7 @@ class AuthController extends ValueNotifier<AuthState> {
             api.onboarding(access, name.trim(), handle.trim().toLowerCase()),
       );
       if (_current(g)) {
-        _onboardingBusy = false;
+        _onboardingGeneration = null;
         _publishUser(result);
       }
     } catch (e) {
@@ -442,7 +465,7 @@ class AuthController extends ValueNotifier<AuthState> {
         );
       }
     } finally {
-      _onboardingBusy = false;
+      if (_onboardingGeneration == g) _onboardingGeneration = null;
     }
   }
 
@@ -452,7 +475,8 @@ class AuthController extends ValueNotifier<AuthState> {
     _emit(AuthState(AuthStatus.initializing, user: value.user, busy: true));
     try {
       final user = await authorized(api.me, replaySafe: true);
-      if (_current(g) && await _checkApple(g)) _publishUser(user);
+      final appleAllowed = await _checkApple(g);
+      if (_current(g) && appleAllowed) _publishUser(user);
     } catch (e) {
       if (_current(g) && _session != null) {
         _emit(AuthState(AuthStatus.error, issue: _issue(e)));
@@ -484,8 +508,26 @@ class AuthController extends ValueNotifier<AuthState> {
     if (foreground) unawaited(revalidate());
   }
 
-  Future<void> signOut({String? notice}) async {
-    final access = _session?.access;
+  Future<void> appleCredentialChanged() async {
+    if (_stored?.appleUser != null) await _checkApple(_generation);
+  }
+
+  Future<void> signOut({String? notice}) {
+    final existing = _logoutFlight;
+    if (existing != null) return existing;
+    late final Future<void> flight;
+    flight = Future<void>.microtask(() => _performSignOut(notice))
+        .whenComplete(() {
+          if (identical(_logoutFlight, flight)) _logoutFlight = null;
+        });
+    _logoutFlight = flight;
+    return flight;
+  }
+
+  Future<void> _performSignOut(String? notice) async {
+    final session = _session;
+    final stored = _stored;
+    final wasRotating = _refreshFlight != null;
     final g = ++_generation;
     api.cancelPending();
     _expiry?.cancel();
@@ -494,6 +536,7 @@ class AuthController extends ValueNotifier<AuthState> {
     _phone = null;
     _challenge = null;
     _retryAt = null;
+    _verifyRetryAt = null;
     _emit(const AuthState(AuthStatus.initializing, busy: true));
     var cleared = true;
     try {
@@ -501,15 +544,53 @@ class AuthController extends ValueNotifier<AuthState> {
     } catch (_) {
       cleared = false;
     }
-    var revoked = access == null;
-    if (access != null) {
+    // A refresh already sent may have consumed the old secret: never reuse it.
+    final canRotate =
+        cleared &&
+        !wasRotating &&
+        stored != null &&
+        now().isBefore(stored.until);
+    var rotated = false;
+    Future<String?> rotateForExit() async {
+      if (!canRotate || rotated || !_current(g)) return null;
+      rotated = true;
       try {
-        await api.logout(access);
-        revoked = true;
-      } on AuthIssue catch (e) {
-        revoked = e.status == 401 || e.code == 'unauthorized';
+        // Old credential was removed from disk first. The new one is never persisted.
+        final result = await api.refresh(stored.refresh);
+        return _current(g) && result.sessionId == stored.sessionId
+            ? result.access
+            : null;
       } catch (_) {
-        /* local exit still clears memory */
+        return null;
+      }
+    }
+
+    var revoked = session == null && stored == null && !wasRotating;
+    if (session != null && _current(g)) {
+      var access = session.access;
+      if (!now().isBefore(session.accessUntil)) {
+        access = await rotateForExit() ?? '';
+      }
+      if (access.isNotEmpty && _current(g)) {
+        try {
+          await api.logout(access);
+          revoked = true;
+        } on AuthIssue catch (e) {
+          // 401 also means expired access; it is not evidence of family revocation.
+          if (e.status == 401 || e.code == 'unauthorized') {
+            final renewed = await rotateForExit();
+            if (renewed != null && _current(g)) {
+              try {
+                await api.logout(renewed);
+                revoked = true;
+              } catch (_) {
+                /* unconfirmed */
+              }
+            }
+          }
+        } catch (_) {
+          /* local exit still clears memory */
+        }
       }
     }
     if (!_current(g)) return;
@@ -517,11 +598,7 @@ class AuthController extends ValueNotifier<AuthState> {
       cleared
           ? AuthState(
               AuthStatus.unauthenticated,
-              notice:
-                  notice ??
-                  (revoked
-                      ? null
-                      : 'Sessão removida deste aparelho. A revogação no servidor não pôde ser confirmada.'),
+              notice: revoked ? notice : 'Sessão removida deste aparelho. A revogação no servidor não pôde ser confirmada.',
             )
           : const AuthState(AuthStatus.error, issue: AuthIssue('storage')),
     );

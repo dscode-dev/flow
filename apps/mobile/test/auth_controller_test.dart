@@ -168,6 +168,7 @@ void main() {
     await r.login();
     expect(r.auth.value.status, AuthStatus.error);
     expect(r.auth.value.issue?.code, 'storage');
+    expect(r.api.logoutCalls, 1);
     expect(r.store.data, isNull);
     r.store.failRead = true;
     await r.auth.restore();
@@ -292,18 +293,24 @@ void main() {
     await r.auth.startPhone('+5581999999999');
     expect(r.api.challengeCalls, 1);
   });
-  test('logout atrasado não sobrescreve uma sessão nova', () async {
-    await r.login();
-    r.api.logoutGate = Completer<void>();
-    final oldLogout = r.auth.signOut();
-    await flush();
-    await r.auth.signOut();
-    await r.login(completed: true);
-    r.api.logoutGate!.complete();
-    await oldLogout;
-    expect(r.auth.value.status, AuthStatus.authenticated);
-    expect(r.store.data, isNotNull);
-  });
+  test(
+    'logout concorrente compartilha conclusão antes de permitir nova sessão',
+    () async {
+      await r.login();
+      r.api.logoutGate = Completer<void>();
+      final oldLogout = r.auth.signOut();
+      await flush();
+      final secondLogout = r.auth.signOut();
+      expect(identical(secondLogout, oldLogout), true);
+      await r.login(completed: true);
+      expect(r.auth.value.busy, true);
+      r.api.logoutGate!.complete();
+      await Future.wait([oldLogout, secondLogout]);
+      await r.login(completed: true);
+      expect(r.auth.value.status, AuthStatus.authenticated);
+      expect(r.store.data, isNotNull);
+    },
+  );
   test(
     '429 na prova bloqueia confirmações sem impedir leitura do erro',
     () async {
@@ -368,6 +375,132 @@ void main() {
       expect(r.auth.value.status, AuthStatus.error);
     },
   );
+  test(
+    'PR-01.C: refresh reentrante registra single-flight antes de notificar',
+    () async {
+      await r.login();
+      var entered = false;
+      Future<void>? nested;
+      r.auth.addListener(() {
+        if (r.auth.value.status == AuthStatus.refreshing && !entered) {
+          entered = true;
+          nested = r.auth.refresh();
+        }
+      });
+      await r.auth.refresh();
+      await nested;
+      expect(r.api.refreshCalls, 1);
+    },
+  );
+  test('PR-01.C: 401 no logout não comprova revogação remota', () async {
+    await r.login();
+    r.api.logoutError = const AuthIssue('unauthorized', status: 401);
+    r.api.refreshError = const AuthIssue('invalid_credential', status: 401);
+    await r.auth.signOut();
+    expect(r.store.data, isNull);
+    expect(r.auth.value.notice, contains('não pôde ser confirmada'));
+  });
+  test(
+    'PR-01.C: logout com access expirado renova uma vez antes de revogar',
+    () async {
+      await r.login();
+      r.clock = instant.add(const Duration(minutes: 11));
+      r.api.next = result(
+        access: 'fa_for_logout',
+        refresh: 'fr_for_logout.secret',
+      );
+      await r.auth.signOut();
+      expect(r.api.refreshCalls, 1);
+      expect(r.api.logoutCalls, 1);
+      expect(r.store.data, isNull);
+      expect(
+        r.store.writes.any((data) => data.contains('fr_for_logout.secret')),
+        false,
+      );
+      expect(r.auth.value.notice, isNull);
+    },
+  );
+  test(
+    'PR-01.C: revalidação não publica perfil depois de intenção de saída',
+    () async {
+      await r.login();
+      var queued = false, exiting = false, republished = false;
+      Future<void>? exit;
+      r.auth.addListener(() {
+        if (!queued && r.auth.value.status == AuthStatus.initializing) {
+          queued = true;
+          scheduleMicrotask(
+            () => scheduleMicrotask(
+              () => scheduleMicrotask(() {
+                exiting = true;
+                exit = r.auth.signOut();
+              }),
+            ),
+          );
+        }
+        if (exiting && r.auth.value.protected) republished = true;
+      });
+      await r.auth.revalidate();
+      await flush();
+      await exit;
+      expect(republished, false);
+      expect(r.auth.value.status, AuthStatus.unauthenticated);
+    },
+  );
+  test('PR-01.C: notificação Apple em foreground consulta estado e encerra só sessão Apple', () async {
+    await r.login(completed: true);
+    r.social.authorized = false;
+    await r.auth.appleCredentialChanged();
+    expect(r.auth.value.status, AuthStatus.authenticated);
+    await r.auth.signOut();
+    await r.login(provider: 'APPLE');
+    await r.auth.appleCredentialChanged();
+    expect(r.auth.value.status, AuthStatus.unauthenticated);
+    expect(r.store.data, isNull);
+  });
+  test('PR-01.C: logout não reutiliza refresh em voo nem trata seu 401 como confirmação', () async {
+    await r.login();
+    r.api.refreshGate = Completer<LoginResult>();
+    final rotating = r.auth.refresh();
+    await flush();
+    r.api.logoutError = const AuthIssue('unauthorized', status: 401);
+    await r.auth.signOut();
+    expect(r.api.refreshCalls, 1);
+    expect(r.auth.value.notice, contains('não pôde ser confirmada'));
+    r.api.refreshGate!.complete(result());
+    await rotating;
+    expect(r.store.data, isNull);
+  });
+  test('PR-01.C: limpeza falha impede renovar token para logout', () async {
+    await r.login();
+    r.clock = instant.add(const Duration(minutes: 11));
+    r.store.failClear = true;
+    await r.auth.signOut();
+    expect(r.api.refreshCalls, 0);
+    expect(r.auth.value.issue?.code, 'storage');
+    expect(r.store.data, isNotNull);
+  });
+  test('PR-01.C: onboarding atrasado de sessão anterior não bloqueia nem libera nova submissão', () async {
+    await r.login();
+    final oldGate = Completer<FlowUser>();
+    r.api.onboardingGate = oldGate;
+    final oldSubmit = r.auth.completeOnboarding('Ana', 'ana_old');
+    await flush();
+    await r.auth.signOut();
+    await r.login();
+    expect(r.auth.value.busy, false);
+    final newGate = Completer<FlowUser>();
+    r.api.onboardingGate = newGate;
+    final newSubmit = r.auth.completeOnboarding('Ana', 'ana_new');
+    await flush();
+    oldGate.complete(completeUser);
+    await oldSubmit;
+    await r.auth.refresh();
+    expect(r.auth.value.busy, true);
+    newGate.complete(completeUser);
+    await newSubmit;
+    expect(r.auth.value.status, AuthStatus.authenticated);
+  });
   test('matriz de guards evita acesso prematuro e redirects externos', () {
     for (final status in AuthStatus.values) {
       final state = AuthState(

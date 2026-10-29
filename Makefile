@@ -2,7 +2,7 @@ SHELL := /bin/sh
 FLUTTER ?= flutter
 SQLC_VERSION := v1.31.1
 COMPOSE := docker compose --env-file .env -f infra/compose/compose.yaml
-.PHONY: env up down logs ps migrate-up migrate-down backend-check mobile-check contracts sqlc smoke identity-test
+.PHONY: env up down logs ps migrate-up migrate-down backend-check mobile-check contracts sqlc smoke identity-test identity-mobile-contract auth-readiness
 env:
 	sh scripts/init-env.sh
 	sh scripts/init-identity-env.sh
@@ -30,3 +30,8 @@ smoke:
 	sh scripts/smoke.sh
 identity-test:
 	sh scripts/identity-test.sh
+
+identity-mobile-contract:
+	FLOW_FLUTTER_CONTRACT_BIN="$(FLUTTER)" FLOW_IDENTITY_TEST_FILTER=TestFlutterIdentityContract sh scripts/identity-test.sh
+auth-readiness:
+	python3 scripts/auth-readiness.py

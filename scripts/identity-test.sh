@@ -16,5 +16,8 @@ env=os.environ.copy()
 env['FLOW_IDENTITY_TEST_DATABASE_URL']='postgres://'+q(value('POSTGRES_USER','flow'),safe='')+':'+q(value('POSTGRES_PASSWORD'),safe='')+'@127.0.0.1:'+value('POSTGRES_PORT','15432')+'/flow_identity_test?sslmode=disable'
 env['FLOW_IDENTITY_TEST_REDIS_URL']='redis://:'+q(value('REDIS_PASSWORD'),safe='')+'@127.0.0.1:'+value('REDIS_PORT','16379')+'/0'
 os.chdir('backend')
-os.execvpe('go',['go','test','-tags=integration','./internal/identity/integration','-count=1','-v'],env)
+args=['go','test','-tags=integration','./internal/identity/integration','-count=1','-v']
+if os.environ.get('FLOW_IDENTITY_TEST_FILTER'):
+    args.extend(['-run',os.environ['FLOW_IDENTITY_TEST_FILTER']])
+os.execvpe('go',args,env)
 PY
