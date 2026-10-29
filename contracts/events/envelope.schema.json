@@ -7,7 +7,7 @@
   "required": ["event_id", "event_type", "schema_version", "aggregate_id", "occurred_at", "payload"],
   "properties": {
     "event_id": {"type": "string", "format": "uuid"},
-    "event_type": {"type": "string", "pattern": "^[a-z]+\\.[a-z_]+$", "maxLength": 150},
+    "event_type": {"type": "string", "pattern": "^[a-z]+(?:\\.[a-z_]+)+$", "maxLength": 150},
     "schema_version": {"type": "integer", "minimum": 1},
     "aggregate_id": {"type": "string", "format": "uuid"},
     "occurred_at": {"type": "string", "format": "date-time"},

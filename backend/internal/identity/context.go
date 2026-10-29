@@ -1,9 +1,8 @@
-// Package identity define apenas o contrato de identidade. Não valida tokens no PR-00.
+// Package identity implementa contas, provas de provedor e sessões do Flow.
 package identity
 
 import (
 	"context"
-	"net/http"
 )
 
 type Principal struct {
@@ -11,11 +10,13 @@ type Principal struct {
 	Permissions []string
 }
 type Authenticator interface {
-	Authenticate(context.Context, *http.Request) (Principal, error)
+	Authenticate(context.Context, string) (*Session, error)
 }
 type Authorizer interface {
 	Authorize(context.Context, Principal, string, string) error
 }
 
-// Adaptadores serão injetados em rotas protegidas no PR-01; ausência de adaptador
-// jamais concede acesso. Health/readiness são as únicas rotas atuais.
+var _ Authenticator = (*Service)(nil)
+
+// Authorizer fica reservado para permissões de domínios futuros. Neste ciclo,
+// ownership, status e autenticação recente são impostos pelo serviço Identity.

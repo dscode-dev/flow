@@ -46,7 +46,7 @@ func Error(w http.ResponseWriter, r *http.Request, status int, code, message str
 
 var validID = regexp.MustCompile(`^[A-Za-z0-9_-]{8,64}$`)
 
-func New(log *slog.Logger, deps Checker, maxBody int64, timeout time.Duration, draining func() bool) http.Handler {
+func New(log *slog.Logger, deps Checker, maxBody int64, timeout time.Duration, draining func() bool, register ...func(chi.Router)) http.Handler {
 	router := chi.NewRouter()
 	router.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -116,6 +116,9 @@ func New(log *slog.Logger, deps Checker, maxBody int64, timeout time.Duration, d
 		}
 		writeJSON(w, 200, map[string]string{"status": "ready"})
 	})
+	for _, routes := range register {
+		routes(router)
+	}
 	router.NotFound(func(w http.ResponseWriter, r *http.Request) { Error(w, r, 404, "not_found", "Recurso não encontrado") })
 	router.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
 		Error(w, r, 405, "method_not_allowed", "Método não permitido")

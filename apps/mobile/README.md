@@ -1,6 +1,6 @@
 # Flow mobile
 
-Base técnica Flutter 3.47.8 / Dart 3.13.7 com Material 3, Riverpod, go_router e Dio. Não contém autenticação ou funcionalidades legadas: o repositório fornecido está vazio.
+Base técnica Flutter 3.47.8 / Dart 3.13.7 com Material 3, Riverpod, go_router e Dio. Flow é implementação nova conforme ADR 0005. O backend Identity está no PR-01.A; telas e integração do app serão entregues no PR-01.B.
 
 Consulte o [README local](../../README.md) e o [workflow](../../docs/architecture/development-workflow.md) para inicialização, variáveis de ambiente, versões, links e testes físicos.
 

@@ -1,0 +1,17 @@
+# ADR 0007 — Twilio Verify v2 para SMS OTP
+
+Status: adaptador implementado; entrega externa pendente de credenciais/homologação. Data: 28/10/2026.
+
+Foram avaliados Twilio Verify e AWS End User Messaging SMS como opções com documentação de atendimento ao Brasil. Selecionamos **Twilio Verify v2**: a API possui início/verificação de desafios e controles antifraude próprios. AWS permanece alternativa operacional; sua adoção exigiria revisão da integração, permissões IAM e operação por região, sem introduzir outro provedor neste ciclo. A decisão não afirma superioridade de entregabilidade ou custo sem teste real.
+
+O adaptador usa HTTPS fixo, Basic Auth com credenciais de conta/subconta dedicada, serviço Verify e `Channel=sms`, com RiskCheck habilitado. Só aceita SID e status válidos; verificação usa o SID devolvido pelo início, não um telefone informado novamente. OTP é gerado e validado pelo serviço gerenciado; o backend não persiste OTP, hash de OTP, código de autorização ou texto SMS. A challenge local tem identificador aleatório, referência HMAC, expiração, tentativas, propósito e consumo transacional próprios.
+
+Defesas Flow são cumulativas: destinos BR por padrão, número E.164 válido, no máximo cinco verificações, TTL de cinco minutos, cooldown de 60 segundos, reservas por número/origem/hora, teto por minuto e orçamento diário global. Quotas são persistidas antes do envio e não devolvidas em falhas ou cooldown: postura conservadora contra custo e retries ambíguos. Valores são configuráveis dentro de limites; o proprietário deve aprovar orçamento antes de ativar credenciais reais.
+
+`201` significa solicitação aceita pelo Verify e challenge pendente; não comprova recebimento pelo aparelho. Falha/timeout de envio marca challenge como failed e retorna provider_unavailable, sem retry automático ou código de desenvolvimento. Falha de verificação nunca confirma autenticação; tentativas locais permanecem limitadas. Reenvio após cooldown cria nova challenge local e invalida anteriores; o provedor pode reutilizar o mesmo OTP/SID durante sua própria janela, sem invalidar o controle local de uso único.
+
+Pré-requisitos: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SERVICE_SID, conta habilitada para SMS no Brasil, serviço configurado com comprimento/TTL compatíveis, Fraud Guard e Geo Permissions restritas aos países aprovados, alertas de gasto, consentimento de envio e números de teste autorizados quando a conta for trial. Usar secret manager/subconta dedicada; não colocar segredo no app Flutter. O adapter não altera settings ou contrata serviços automaticamente.
+
+Homologação externa bloqueada: não foram fornecidas credenciais nem observado recebimento/validação SMS. Testes de adapter usam HTTP controlado apenas em automatização; o runtime não possui bypass. Interceptação, SIM swap, reciclagem de número e indisponibilidade de operadora continuam riscos. SMS não habilita privilégios administrativos/financeiros futuros.
+
+Fontes: [Verifications](https://www.twilio.com/docs/verify/api/verification), [Verification Check](https://www.twilio.com/docs/verify/api/verification-check), [Brasil e idioma Verify](https://www.twilio.com/docs/verify/default-phone-verification-languages), [diretrizes SMS Brasil](https://www.twilio.com/en-us/guidelines/br/sms), [AWS Notify: países](https://docs.aws.amazon.com/sms-voice/latest/userguide/notify-countries.html). Disponibilidade comercial e condições devem ser reconfirmadas pelo proprietário ao contratar.

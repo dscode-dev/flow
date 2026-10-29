@@ -4,7 +4,7 @@ Estas fronteiras são de propriedade, não serviços deployáveis ou endpoints a
 
 | Módulo | Responsabilidade e dados próprios | Dependências permitidas / limites |
 | --- | --- | --- |
-| Identity | Identidade, credenciais, sessões, autenticação | Emite contexto de identidade; não possui perfil social; PR-01 |
+| Identity | Identidade, credenciais, sessões, autenticação | PR-01.A: conta, métodos, sessões e perfil mínimo/onboarding; não possui perfil social |
 | Users | Perfil e preferências de apresentação | Referência opaca a Identity; não acessa credenciais |
 | Experiences | Experiências, eventos e agenda | Autoria de Users; não gerencia presença |
 | Participation | Participação, capacidade, elegibilidade | Usa Experiences e contexto autorizado; decide regras transacionais |
@@ -22,4 +22,4 @@ Estas fronteiras são de propriedade, não serviços deployáveis ou endpoints a
 
 Invariantes de segurança pertencem ao servidor. IDs externos não concedem acesso. Sem leitura direta de tabelas de outro módulo. Eventos de integração transportam o mínimo necessário; dados de projeção mantêm origem e estratégia de atualização/exclusão. Chamadas síncronas são preferidas quando uma invariante exige consistência imediata; eventos servem propagação pós-commit. Dependências circulares exigem rever a fronteira, não um broker adicional.
 
-Implementado em PR-00: plataforma técnica e contratos mínimos de Identity, sem domínio persistido. Nenhum endpoint de negócio foi inferido desta tabela.
+PR-00 entregou plataforma. PR-01.A implementa somente Identity e perfil mínimo de primeiro acesso em schema próprio, sem gestão geral Users. As demais fronteiras continuam futuras; nenhum endpoint adicional foi inferido desta tabela.

@@ -1,10 +1,11 @@
 openapi: 3.0.3
 info:
-  title: Flow — fundação HTTP
-  version: 0.1.0
-  description: Somente probes operacionais. Contratos de negócio serão definidos por ciclo.
+  title: Flow Identity API
+  version: 1.0.0
+  description: 'PR-01.A: identidade por PHONE, GOOGLE e APPLE. Credenciais opacas Flow; nenhum login por senha.
+    Provedores sem configuração retornam 503.'
 servers:
-  - url: /
+- url: /
 paths:
   /healthz:
     get:
@@ -23,10 +24,14 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [status]
+                required:
+                - status
                 additionalProperties: false
                 properties:
-                  status: {type: string, enum: [alive]}
+                  status:
+                    type: string
+                    enum:
+                    - alive
   /readyz:
     get:
       operationId: readiness
@@ -44,10 +49,14 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [status]
+                required:
+                - status
                 additionalProperties: false
                 properties:
-                  status: {type: string, enum: [ready]}
+                  status:
+                    type: string
+                    enum:
+                    - ready
         '503':
           description: Dependência indisponível ou encerramento
           headers:
@@ -57,6 +66,600 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /v1/auth/phone/challenges:
+    post:
+      operationId: requestPhoneChallenge
+      summary: Solicita SMS real
+      description: 'Solicita SMS real. login é público; link/reauth exigem sessão; link exige autenticação recente.
+        Reenvio usa nova solicitação após cooldown e invalida desafio anterior. Não revela existência da conta.
+        Sem idempotência de entrega: não repetir automaticamente após timeout; aguardar cooldown. Quotas por número/origem/global
+        persistidas antes do envio.'
+      security:
+      - {}
+      - bearerAuth: []
+      responses:
+        '201':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Challenge'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PhoneChallengeRequest'
+  /v1/auth/oidc/challenges:
+    post:
+      operationId: requestOIDCChallenge
+      summary: Cria nonce de uso único ligado ao provedor e finalidade
+      description: Cria nonce de uso único ligado ao provedor e finalidade. login é público; link/reauth exigem
+        sessão; link exige autenticação recente. Novo challenge por tentativa, sem reutilização.
+      security:
+      - {}
+      - bearerAuth: []
+      responses:
+        '201':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Challenge'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OIDCChallengeRequest'
+  /v1/auth/phone/verify:
+    post:
+      operationId: phoneLogin
+      summary: Consome uma vez desafio login e OTP aprovado pelo Twilio Verify
+      description: Consome uma vez desafio login e OTP aprovado pelo Twilio Verify. Cadastro e login retornam o
+        mesmo modelo. Não repetir após resposta perdida; iniciar nova prova. Número nunca é enviado em URL ou resposta.
+      security: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PhoneVerifyRequest'
+  /v1/auth/google:
+    post:
+      operationId: googleLogin
+      summary: Valida RS256, chaves Google confiáveis, issuer, audience/azp aprovado, exp/iat e nonce do desafio
+        login
+      description: Valida RS256, chaves Google confiáveis, issuer, audience/azp aprovado, exp/iat e nonce do desafio
+        login. Usa sub, sem exigir telefone. Desafio de uso único; repetir com novo desafio após falha ambígua.
+      security: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OIDCLoginRequest'
+  /v1/auth/apple:
+    post:
+      operationId: appleLogin
+      summary: Valida ID token Apple nativo com assinatura, issuer, audience, exp/iat e nonce
+      description: Valida ID token Apple nativo com assinatura, issuer, audience, exp/iat e nonce. Não recebe authorization
+        code e não troca código neste fluxo. Usa sub, ignora e-mail/relay e nome. Sem exigência de telefone. Desafio
+        de uso único.
+      security: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OIDCLoginRequest'
+  /v1/auth/refresh:
+    post:
+      operationId: refreshSession
+      summary: 'Rotação estrita: cada refresh só pode ser usado uma vez'
+      description: 'Rotação estrita: cada refresh só pode ser usado uma vez. Reuso com segredo correto revoga a
+        família/sessão, incluindo o novo access. Não idempotente: cliente deve usar single-flight e nunca repetir
+        refresh antigo após timeout. PostgreSQL autoritativo; Redis não afeta validação/revogação.'
+      security: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+  /v1/auth/logout:
+    post:
+      operationId: logout
+      summary: Revoga a sessão atual
+      description: Revoga a sessão atual. Repetição com credencial já revogada retorna 401; cliente trata 401 como
+        saída concluída e limpa armazenamento.
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+  /v1/auth/reauthenticate:
+    post:
+      operationId: reauthenticate
+      summary: Confirma controle de identidade já vinculada por desafio reauth ligado à sessão
+      description: Confirma controle de identidade já vinculada por desafio reauth ligado à sessão. Atualiza autenticação
+        recente sem emitir outra sessão. Não aceitar identidade de outra conta ou finalidade link/login.
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderProof'
+  /v1/me:
+    get:
+      operationId: getMe
+      summary: Perfil mínimo e estado explícito de onboarding
+      description: Perfil mínimo e estado explícito de onboarding. Conta suspensa/desabilitada/deletada recebe account_restricted.
+        Nenhum telefone, e-mail, token ou subject de provedor retornado.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+  /v1/me/onboarding:
+    patch:
+      operationId: completeOnboarding
+      summary: Completa perfil inicial uma única vez
+      description: Completa perfil inicial uma única vez. Repetição normalizada idêntica é idempotente; alteração
+        posterior recebe onboarding_already_completed. Handle lowercase ASCII único e reservado; indisponibilidade
+        gera handle_unavailable.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardingRequest'
+  /v1/me/sessions:
+    get:
+      operationId: listSessions
+      summary: Lista todas as sessões ativas até limite configurado de 20
+      description: Lista todas as sessões ativas até limite configurado de 20. Não expõe hashes ou IDs de hardware.
+        device label é dado opcional fornecido pela pessoa, sem prova de posse.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionList'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+  /v1/me/sessions/{sessionId}:
+    delete:
+      operationId: revokeSession
+      summary: Revoga somente sessão da conta atual, sem revelar sessões de terceiros
+      description: Revoga somente sessão da conta atual, sem revelar sessões de terceiros. Idempotente enquanto
+        a sessão chamadora continuar válida. Sessão de outro dispositivo exige autenticação recente.
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema: &id001
+          type: string
+          format: uuid
+  /v1/me/sessions/revoke-all:
+    post:
+      operationId: revokeAllSessions
+      summary: Revoga todas as sessões inclusive a atual; exige autenticação recente
+      description: Revoga todas as sessões inclusive a atual; exige autenticação recente. Repetição com credencial
+        revogada recebe 401, sem efeito adicional.
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+  /v1/me/identities:
+    get:
+      operationId: listIdentities
+      summary: Lista métodos vinculados utilizáveis, sem telefone/e-mail ou subject
+      description: Lista métodos vinculados utilizáveis, sem telefone/e-mail ou subject. Identidades revogadas não
+        aparecem.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityList'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+  /v1/me/identities/link:
+    post:
+      operationId: linkIdentity
+      summary: Exige sessão válida, autenticação recente e desafio link independente vinculado à sessão
+      description: Exige sessão válida, autenticação recente e desafio link independente vinculado à sessão. Conflito
+        de dono retorna identity_conflict sem dados da outra conta. Vínculo já existente do mesmo dono e repetição
+        do desafio consumido são idempotentes. Não transfere identidade ou mescla e-mails.
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderProof'
+  /v1/me/identities/{identityId}:
+    delete:
+      operationId: unlinkIdentity
+      summary: Exige autenticação recente e preserva ao menos outro método disponível
+      description: Exige autenticação recente e preserva ao menos outro método disponível. Idempotente; não revela
+        identidade de terceiros. Mantém reserva de ownership como tombstone até política de privacidade/recovery
+        aprovada.
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: identityId
+        in: path
+        required: true
+        schema: *id001
+  /v1/auth/apple/notifications:
+    post:
+      operationId: appleNotification
+      summary: Webhook público somente com JWS Apple válido
+      description: Webhook público somente com JWS Apple válido. Deduplicação por jti. consent-revoked/account-deleted
+        revogam identidade e todas as sessões Flow; eventos de relay não alteram identidade. Notificações sem exp
+        seguem formato documentado pela Apple com janela iat de sete dias.
+      security: []
+      responses:
+        '204':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
+        default:
+          $ref: '#/components/responses/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppleNotification'
 components:
   responses:
     Error:
@@ -68,26 +671,350 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
+    RateLimited:
+      description: Quota ou cooldown atingido. Não repetir automaticamente. Retry-After é conservador; respeitar
+        também expires_at/cooldown.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 1
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
   headers:
     RequestID:
       description: Correlação opaca, sem identidade de usuário
-      schema: {type: string, minLength: 8, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$'}
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 64
+        pattern: ^[A-Za-z0-9_-]+$
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
-      description: Reservado para PR-01; nenhum emissor ou validador implementado.
+      description: Credencial opaca de acesso Flow. Estado da sessão e status da conta sempre verificados no PostgreSQL.
+      bearerFormat: opaque
   schemas:
     ErrorEnvelope:
       type: object
-      required: [error]
+      required:
+      - error
       additionalProperties: false
       properties:
         error:
           type: object
-          required: [code, message, request_id]
+          required:
+          - code
+          - message
+          - request_id
           additionalProperties: false
           properties:
-            code: {type: string}
-            message: {type: string}
-            request_id: {type: string}
+            code:
+              type: string
+              description: 'Códigos estáveis: invalid_request, invalid_credential, unauthorized, account_restricted,
+                reauthentication_required, identity_conflict, last_identity, handle_unavailable, onboarding_already_completed,
+                session_limit, rate_limited, provider_unavailable, temporarily_unavailable, payload_too_large.'
+            message:
+              type: string
+            request_id:
+              type: string
+    Device:
+      type: object
+      additionalProperties: false
+      required:
+      - platform
+      - app_version
+      properties:
+        platform:
+          type: string
+          enum:
+          - android
+          - ios
+        app_version:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: ^[0-9A-Za-z.+_-]+$
+        label:
+          type: string
+          maxLength: 80
+    PhoneChallengeRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - phone
+      - purpose
+      properties:
+        phone:
+          type: string
+          minLength: 8
+          maxLength: 40
+          description: Formato internacional iniciado em +; normalizado e validado por libphonenumber. Países permitidos
+            por configuração.
+        purpose: &id002
+          type: string
+          enum:
+          - login
+          - link
+          - reauth
+    OIDCChallengeRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - provider
+      - purpose
+      properties:
+        provider:
+          type: string
+          enum:
+          - GOOGLE
+          - APPLE
+        purpose: *id002
+    Challenge:
+      type: object
+      additionalProperties: false
+      required:
+      - challenge_id
+      - expires_at
+      - resend_after_seconds
+      properties:
+        challenge_id: *id001
+        expires_at: &id003
+          type: string
+          format: date-time
+        resend_after_seconds:
+          type: integer
+          minimum: 0
+        nonce:
+          type: string
+          minLength: 32
+          maxLength: 256
+          description: Usar exatamente como retornado no request ao provedor. Apple já recebe nonce SHA-256 em hexadecimal;
+            não aplicar outro hash.
+    PhoneVerifyRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - challenge_id
+      - code
+      - device
+      properties:
+        challenge_id: *id001
+        code:
+          type: string
+          pattern: ^[0-9]{4,10}$
+          writeOnly: true
+        device:
+          $ref: '#/components/schemas/Device'
+    OIDCLoginRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - challenge_id
+      - id_token
+      - device
+      properties:
+        challenge_id: *id001
+        id_token:
+          type: string
+          minLength: 1
+          maxLength: 16384
+          writeOnly: true
+        device:
+          $ref: '#/components/schemas/Device'
+    ProviderProof:
+      type: object
+      additionalProperties: false
+      required:
+      - provider
+      - challenge_id
+      - credential
+      properties:
+        provider: &id004
+          type: string
+          enum:
+          - PHONE
+          - GOOGLE
+          - APPLE
+        challenge_id: *id001
+        credential:
+          type: string
+          minLength: 1
+          maxLength: 16384
+          writeOnly: true
+          description: OTP para PHONE ou ID token para GOOGLE/APPLE. Nunca um subject informado pelo cliente.
+    Tokens:
+      type: object
+      additionalProperties: false
+      required:
+      - access_token
+      - token_type
+      - expires_in
+      - refresh_token
+      - session_id
+      - session_expires_at
+      properties:
+        access_token:
+          type: string
+          writeOnly: false
+          pattern: ^fa_[A-Za-z0-9_-]{43}$
+        token_type:
+          type: string
+          enum:
+          - Bearer
+        expires_in:
+          type: integer
+          minimum: 1
+        refresh_token:
+          type: string
+          pattern: ^fr_[0-9a-f-]{36}\.[A-Za-z0-9_-]{43}$
+        session_id: *id001
+        session_expires_at: *id003
+    Profile:
+      type: object
+      additionalProperties: false
+      required:
+      - display_name
+      - handle
+      - avatar_ref
+      properties:
+        display_name:
+          type: string
+          maxLength: 80
+        handle:
+          type: string
+          nullable: true
+          minLength: 3
+          maxLength: 30
+          pattern: ^[a-z][a-z0-9_]{2,29}$
+        avatar_ref:
+          type: string
+          format: uuid
+          nullable: true
+    Me:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - status
+      - created_at
+      - onboarding_required
+      - profile
+      properties:
+        id: *id001
+        status:
+          type: string
+          enum:
+          - active
+        created_at: *id003
+        onboarding_required:
+          type: boolean
+        profile:
+          $ref: '#/components/schemas/Profile'
+    LoginResult:
+      type: object
+      additionalProperties: false
+      required:
+      - tokens
+      - user
+      properties:
+        tokens:
+          $ref: '#/components/schemas/Tokens'
+        user:
+          $ref: '#/components/schemas/Me'
+    RefreshRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          minLength: 1
+          maxLength: 128
+          writeOnly: true
+    OnboardingRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - display_name
+      - handle
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        handle:
+          type: string
+          minLength: 3
+          maxLength: 30
+          description: Normalização trim + ASCII lowercase. Único e sujeito à reserva. Não permite Unicode/homógrafos.
+    Session:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - current
+      - created_at
+      - expires_at
+      - last_used_at
+      - device
+      properties:
+        id: *id001
+        current:
+          type: boolean
+        created_at: *id003
+        expires_at: *id003
+        last_used_at: *id003
+        device:
+          $ref: '#/components/schemas/Device'
+    SessionList:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/Session'
+    LinkedIdentity:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - provider
+      - verified_at
+      properties:
+        id: *id001
+        provider: *id004
+        verified_at: *id003
+    IdentityList:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LinkedIdentity'
+    AppleNotification:
+      type: object
+      additionalProperties: false
+      required:
+      - payload
+      properties:
+        payload:
+          type: string
+          minLength: 1
+          maxLength: 16384
+          writeOnly: true
+          description: JWS de notificação Apple. Assinatura, issuer, audience, iat, jti e eventos verificados; nenhum
+            segredo compartilhado no URL.

@@ -1,5 +1,6 @@
 # Auditoria inicial — PR-00
 
+> Atualização PR-01.A: a decisão explícita de produto no [ADR 0005](../decisions/0005-fresh-flow.md) encerra a dependência de legado. Este documento preserva o registro histórico PR-00; não orienta procurar ou migrar Rolezin.
 Data: 27/10/2026. Diretório examinado: workspace `Flow` informado na sessão.
 
 ## Evidências antes de alterar código

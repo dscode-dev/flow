@@ -1,6 +1,6 @@
-# Flow V1 — PR-00
+# Flow V1 — fundação e Identity
 
-Fundação Go e Flutter. O workspace e o [repositório informado](https://github.com/dscode-dev/flow) estavam vazios; a base mobile é nova. Preservação de Rolezin/Mapbox e marca final dependem da entrega do legado. Ver [auditoria](docs/architecture/initial-audit.md) e [relatório PR-00](docs/architecture/pr-00-completion-report.md).
+Flow é uma implementação nova, por decisão de produto no [ADR 0005](docs/decisions/0005-fresh-flow.md), sem migração ou dependência do Rolezin. PR-00 entrega fundação Go/Flutter; PR-01.A entrega Identity por PHONE/GOOGLE/APPLE. Telas e integração Flutter pertencem ao PR-01.B. Ver [Identity](docs/features/identity.md), [contratos mobile](docs/features/identity-mobile-integration.md) e [relatório PR-01.A](docs/architecture/pr-01a-completion-report.md).
 
 ## Requisitos
 
@@ -27,7 +27,7 @@ make migrate-down
 make migrate-up
 ```
 
-Probes: liveness 200 sem dependências; readiness 200 quando PostgreSQL/Redis/RabbitMQ estão disponíveis, 503 durante falha/encerramento. Não existe endpoint de autenticação ou CRUD. `make smoke` é **somente para ambiente de teste vazio**: faz down/up da migração técnica e interrompe Redis temporariamente, verificando recuperação. Nunca executá-lo em produção ou quando houver eventos que devam ser preservados. Rollback não remove PostGIS.
+Probes: liveness 200 sem dependências; readiness 200 quando PostgreSQL/Redis/RabbitMQ estão disponíveis, 503 durante falha/encerramento. Endpoints reais de autenticação e self-service estão no OpenAPI; nenhum CRUD Users/admin é exposto. `make smoke` é **somente para ambiente de teste vazio**: faz down/up das migrações Identity e fundação, com guarda para contas/outbox existentes e interrompe Redis temporariamente, verificando recuperação. Nunca executá-lo em produção ou quando houver eventos que devam ser preservados. Rollback não remove PostGIS.
 
 Observabilidade opcional: configure `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318` em `.env` e execute:
 
@@ -61,3 +61,18 @@ make mobile-check
 `FLUTTER=/caminho/do/sdk/bin/flutter make mobile-check` seleciona uma instalação sem alterar SDK compartilhado. Testes de widget não provam execução de plugins em aparelhos. GitHub Actions verifica código e smoke; workflow só roda após o usuário autorizar commit/push, que não foram feitos nesta tarefa.
 
 Arquitetura em [visão geral](docs/architecture/system-overview.md), [módulos](docs/architecture/module-boundaries.md), [contratos](contracts/README.md), [ADRs](docs/decisions/0001-modular-go.md), [P2P](docs/architecture/p2p-v1.md), [governança](docs/privacy/data-governance.md) e [capacidades administrativas](docs/admin-capabilities.md). PRs futuros devem atualizar o registro administrativo conforme o impacto da feature.
+
+## Identity — configuração e testes
+
+`make env` também gera a chave HMAC local quando ausente/vazia; API falha se ela estiver inválida. Sem credenciais externas, provedores ficam indisponíveis (503), sem simular entrega ou login. Preencher TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN/TWILIO_VERIFY_SERVICE_SID, GOOGLE_CLIENT_IDS e APPLE_CLIENT_IDS somente com valores reais do proprietário. Consulte os [pré-requisitos](docs/features/identity.md) e o [ADR SMS](docs/decisions/0007-sms-provider.md). Não colocar credenciais de servidor em dart-define.
+
+```sh
+make up
+make identity-test
+make contracts
+make sqlc
+```
+
+`identity-test` usa exclusivamente banco separado `flow_identity_test`, PostgreSQL real e HTTP real; para Redis da stack temporariamente e o restaura. Upstreams Twilio/Google/Apple são controlados somente em testes. O comando recria schemas no banco de teste, nunca no banco principal. Testes criptográficos usam par RSA de fixture, sem vínculo com provedores reais. Testes físicos e telas não fazem parte de PR-01.A.
+
+Retenção operacional: com política revisada, agendar `/app/identity-retention` diariamente na mesma imagem, com DATABASE_URL injetada e papel autorizado. Não é um serviço adicional ou endpoint HTTP. Ele respeita a janela de refresh até expiração absoluta +30 dias e não apaga contas, identidades ou eventos pendentes.

@@ -18,9 +18,9 @@ Referências consultadas em 27/10/2026: [Go downloads](https://go.dev/dl/?mode=j
 
 Configuração via `--dart-define=FLOW_ENV=development --dart-define=API_BASE_URL=https://SEU_HOST/`. A URL precisa terminar em `/`; inclui prefixo quando aplicável. Não há host padrão. Runtime não contém segredo injetado por dart-define: valores compilados são públicos. Nunca colocar credenciais privadas nele.
 
-go_router usa Router API e resolve caminhos em um só lugar. Rotas ainda não implementadas exibem erro recuperável. PR-01 implementará guard reativo para `unknown`, restauração, expiração e retorno após login, com destino interno validado; nenhum redirecionamento externo arbitrário. Não transportar bearer em links. Universal Links/App Links exigem domínio real verificado, association files, IDs de app e certificados; sem domínio disponível, não inventar manifests de produção. A infraestrutura Dart de links está pronta; associação nativa verificada permanece um gate manual do PR-01. Não criar rotas fictícias de experiências ou Radar para simular essa integração.
+go_router usa Router API e resolve caminhos em um só lugar. Rotas ainda não implementadas exibem erro recuperável. PR-01.B implementará guard reativo para `unknown`, restauração, expiração e retorno após login, com destino interno validado; nenhum redirecionamento externo arbitrário. Não transportar bearer em links. Universal Links/App Links exigem domínio real verificado, association files, IDs de app e certificados; sem domínio disponível, não inventar manifests de produção. A infraestrutura Dart de links está pronta; associação nativa verificada permanece um gate manual do PR-01. Não criar rotas fictícias de experiências ou Radar para simular essa integração.
 
-Os projetos Android/iOS são scaffolds novos, com IDs `com.example` e ícones Flutter padrão **não aprovados como marca**. Não publicar esses identificadores/ícones. A equipe de assinatura local foi removida. Substituir IDs, signing e assets somente pelos valores verificados do produto. Android desabilita backup para dados sensíveis; iOS usa entitlements de Keychain sem grupo de outros apps. Migração de armazenamento do legado exige auditoria própria.
+Os projetos Android/iOS são scaffolds novos, com IDs `com.example` e ícones Flutter padrão **não aprovados como marca**. Não publicar esses identificadores/ícones. A equipe de assinatura local foi removida. Substituir IDs, signing e assets somente pelos valores verificados do produto. Android desabilita backup para dados sensíveis; iOS usa entitlements de Keychain sem grupo de outros apps. Flow segue como implementação nova conforme ADR 0005, sem migração de armazenamento legado.
 
 ## Validação manual antes de release
 
@@ -28,9 +28,11 @@ Os projetos Android/iOS são scaffolds novos, com IDs `com.example` e ícones Fl
 - Validar URL HTTPS alcançável pelo dispositivo, perda/retorno de rede, deadlines e mensagens sanitizadas. `localhost` de um telefone aponta para o próprio telefone, não para o host Docker.
 - SecureStore: escrever valor de teste sem credencial real, reler após reinício, apagar, verificar bloqueio/desbloqueio e ausência em backup/logs. Nenhum teste de widget comprova Keychain/Keystore.
 - App Links/Universal Links: domínio e assinatura reais, app fechado/aberto, links inválidos, host indevido, usuário sem sessão, sem loop ou acesso antecipado.
-- Ao receber legado, executar regressões de telas, navegação, permissões e Mapbox em aparelhos; sem tokens privados versionados.
+- Em PR-01.B e homologação de release, validar telas novas, navegação e SDKs nativos; nenhum teste físico é exigido ou executado em PR-01.A.
 - P2P: usar plano dedicado no ADR 0003, não marcar por teste em simulador.
 
 ## CI
 
 GitHub Actions executa Go format/vet/test, OpenAPI, geração sqlc sem divergência, Flutter format/analyze/test e smoke Compose com rollback/up e falha de Redis. Não há publicação, push de imagem, conta de fornecedor, credenciais de produção ou suite de negócio inexistente. Segredos de teste são gerados durante o job; teardown preserva volumes por padrão.
+
+Identity: `make identity-test` executa HTTP real com PostgreSQL isolado e Redis parado; `docs/features/identity.md` descreve arquitetura/provedores e `identity-mobile-integration.md` define os contratos PR-01.B. Não rodar novamente suites Flutter sem alterações mobile.

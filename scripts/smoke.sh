@@ -1,5 +1,5 @@
 #!/bin/sh
-# Somente ambiente local isolado: faz rollback de uma migração e interrompe Redis.
+# Somente ambiente local vazio: testa as migrações PR-01.A/PR-00 e Redis.
 set -eu
 cd "$(dirname "$0")/.."
 compose() { docker compose --env-file .env -f infra/compose/compose.yaml "$@"; }
@@ -27,8 +27,25 @@ trap restore EXIT HUP INT TERM
 check /healthz 200
 check /readyz 200
 check /missing 404
+compose exec -T postgres sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
+DO $$ DECLARE n bigint; BEGIN
+ IF to_regclass('identity.users') IS NOT NULL THEN
+  EXECUTE 'SELECT count(*) FROM identity.users' INTO n;
+  IF n > 0 THEN RAISE EXCEPTION 'Smoke exige banco vazio; não reverter contas existentes'; END IF;
+ END IF;
+ IF EXISTS (SELECT FROM integration.outbox) OR EXISTS (SELECT FROM integration.inbox) THEN
+  RAISE EXCEPTION 'Smoke exige outbox/inbox vazias';
+ END IF;
+END $$;
+SQL
 compose run --rm migrate /app/migrate status
-# O rollback afeta apenas as tabelas técnicas; executar antes de eventos reais.
+compose run --rm migrate /app/migrate down
+compose exec -T postgres sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
+DO $$ BEGIN
+ IF to_regnamespace('identity') IS NOT NULL THEN RAISE EXCEPTION 'rollback Identity incompleto'; END IF;
+ IF to_regclass('integration.outbox') IS NULL THEN RAISE EXCEPTION 'rollback Identity afetou fundação'; END IF;
+END $$;
+SQL
 compose run --rm migrate /app/migrate down
 compose exec -T postgres sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
 DO $$ BEGIN
@@ -66,4 +83,4 @@ until curl --silent --fail --max-time 6 "$probe_url/readyz" >/dev/null; do
   if [ "$attempt" -ge 15 ]; then echo 'Readiness não recuperou'; exit 1; fi
   sleep 1
 done
-echo 'Smoke passou: probes, rollback/up, PostGIS preservado, transação, inbox e recuperação Redis.'
+echo 'Smoke passou: probes, rollback/up Identity e fundação, PostGIS, transação, inbox e recuperação Redis.'

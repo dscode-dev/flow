@@ -11,8 +11,57 @@ import (
 )
 
 type Querier interface {
+	ActiveUserSessionIDs(ctx context.Context, userID pgtype.UUID) ([]string, error)
 	AppendOutbox(ctx context.Context, arg AppendOutboxParams) error
+	AttemptIdentityChallenge(ctx context.Context, arg AttemptIdentityChallengeParams) error
+	CompleteIdentityOnboarding(ctx context.Context, arg CompleteIdentityOnboardingParams) error
+	ConsumeIdentityChallenge(ctx context.Context, id pgtype.UUID) error
+	ConsumeRefreshCredential(ctx context.Context, id pgtype.UUID) error
+	CountActiveSessions(ctx context.Context, userID pgtype.UUID) (int64, error)
+	CreateIdentityProfile(ctx context.Context, userID pgtype.UUID) error
+	CreateIdentityUser(ctx context.Context, id pgtype.UUID) error
+	FindAccessSession(ctx context.Context, credentialHash []byte) (FindAccessSessionRow, error)
+	FindProviderIdentity(ctx context.Context, arg FindProviderIdentityParams) (FindProviderIdentityRow, error)
+	FindRefreshOwner(ctx context.Context, id pgtype.UUID) (FindRefreshOwnerRow, error)
+	IdentityAdvisoryLock(ctx context.Context, dollar_1 string) error
+	IdentityMe(ctx context.Context, id pgtype.UUID) (IdentityMeRow, error)
+	IncrementIdentityBucket(ctx context.Context, arg IncrementIdentityBucketParams) (int32, error)
+	InsertAccessCredential(ctx context.Context, arg InsertAccessCredentialParams) error
+	InsertIdentityAudit(ctx context.Context, arg InsertIdentityAuditParams) error
+	InsertIdentityChallenge(ctx context.Context, arg InsertIdentityChallengeParams) error
+	InsertIdentityDevice(ctx context.Context, arg InsertIdentityDeviceParams) error
+	InsertIdentitySession(ctx context.Context, arg InsertIdentitySessionParams) error
+	InsertProviderIdentity(ctx context.Context, arg InsertProviderIdentityParams) error
+	InsertRefreshCredential(ctx context.Context, arg InsertRefreshCredentialParams) error
+	IsReservedHandle(ctx context.Context, handle string) (bool, error)
+	LastPhoneChallengeAt(ctx context.Context, subjectRef pgtype.Text) (pgtype.Timestamptz, error)
+	ListIdentitySessions(ctx context.Context, userID pgtype.UUID) ([]ListIdentitySessionsRow, error)
+	ListUserIdentities(ctx context.Context, userID pgtype.UUID) ([]ListUserIdentitiesRow, error)
+	LockIdentityChallenge(ctx context.Context, id pgtype.UUID) (LockIdentityChallengeRow, error)
+	LockIdentitySession(ctx context.Context, id pgtype.UUID) (LockIdentitySessionRow, error)
+	LockIdentityUser(ctx context.Context, id pgtype.UUID) (LockIdentityUserRow, error)
+	LockRefreshCredential(ctx context.Context, arg LockRefreshCredentialParams) (LockRefreshCredentialRow, error)
+	MarkIdentityOnboarding(ctx context.Context, id pgtype.UUID) error
+	PruneIdentityAccess(ctx context.Context) (int64, error)
+	PruneIdentityAudit(ctx context.Context) (int64, error)
+	PruneIdentityChallengeSessions(ctx context.Context) (int64, error)
+	PruneIdentityChallenges(ctx context.Context) (int64, error)
+	PruneIdentityDevices(ctx context.Context) (int64, error)
+	PruneIdentityNotifications(ctx context.Context) (int64, error)
+	PruneIdentityRateLimits(ctx context.Context) (int64, error)
+	PruneIdentityRefreshHistory(ctx context.Context) (int64, error)
+	PruneIdentitySessionAccess(ctx context.Context) (int64, error)
+	PruneIdentitySessions(ctx context.Context) (int64, error)
+	ReauthenticateIdentitySession(ctx context.Context, arg ReauthenticateIdentitySessionParams) error
+	RegisterAppleNotification(ctx context.Context, digest []byte) (int64, error)
 	RegisterInbox(ctx context.Context, arg RegisterInboxParams) (pgtype.UUID, error)
+	RestoreProviderIdentity(ctx context.Context, id pgtype.UUID) error
+	RevokeIdentitySession(ctx context.Context, arg RevokeIdentitySessionParams) (int64, error)
+	RevokeProviderIdentity(ctx context.Context, arg RevokeProviderIdentityParams) (int64, error)
+	SetChallengeDelivery(ctx context.Context, arg SetChallengeDeliveryParams) error
+	SupersedePhoneChallenges(ctx context.Context, subjectRef pgtype.Text) error
+	TouchAuthenticatedUser(ctx context.Context, id pgtype.UUID) error
+	TouchIdentitySession(ctx context.Context, id pgtype.UUID) error
 }
 
 var _ Querier = (*Queries)(nil)

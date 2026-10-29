@@ -8,6 +8,115 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type IdentityAccessCredential struct {
+	CredentialHash []byte
+	SessionID      pgtype.UUID
+	ExpiresAt      pgtype.Timestamptz
+}
+
+type IdentityAuditEvent struct {
+	ID        pgtype.UUID
+	UserID    pgtype.UUID
+	SessionID pgtype.UUID
+	Action    string
+	Outcome   string
+	Reason    string
+	RequestID string
+	CreatedAt pgtype.Timestamptz
+}
+
+type IdentityAuthIdentity struct {
+	ID              pgtype.UUID
+	UserID          pgtype.UUID
+	Provider        string
+	ProviderSubject string
+	VerifiedAt      pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	RevokedAt       pgtype.Timestamptz
+}
+
+type IdentityChallenge struct {
+	ID                pgtype.UUID
+	Provider          string
+	Purpose           string
+	SessionID         pgtype.UUID
+	SubjectRef        pgtype.Text
+	NonceHash         []byte
+	ProviderReference pgtype.Text
+	Status            string
+	Attempts          int32
+	CreatedAt         pgtype.Timestamptz
+	ExpiresAt         pgtype.Timestamptz
+	ConsumedAt        pgtype.Timestamptz
+	OriginRef         string
+}
+
+type IdentityDevice struct {
+	ID          pgtype.UUID
+	UserID      pgtype.UUID
+	Platform    string
+	AppVersion  string
+	Label       string
+	FirstSeenAt pgtype.Timestamptz
+	LastSeenAt  pgtype.Timestamptz
+}
+
+type IdentityProfile struct {
+	UserID      pgtype.UUID
+	DisplayName string
+	Handle      pgtype.Text
+	AvatarRef   pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type IdentityProviderNotification struct {
+	Digest     []byte
+	ReceivedAt pgtype.Timestamptz
+}
+
+type IdentityRateLimit struct {
+	BucketKey string
+	Count     int32
+	ExpiresAt pgtype.Timestamptz
+}
+
+type IdentityRefreshCredential struct {
+	ID             pgtype.UUID
+	SessionID      pgtype.UUID
+	CredentialHash []byte
+	CreatedAt      pgtype.Timestamptz
+	ExpiresAt      pgtype.Timestamptz
+	UsedAt         pgtype.Timestamptz
+}
+
+type IdentityReservedHandle struct {
+	Handle string
+}
+
+type IdentitySession struct {
+	ID                    pgtype.UUID
+	UserID                pgtype.UUID
+	DeviceID              pgtype.UUID
+	AuthenticatedProvider string
+	CreatedAt             pgtype.Timestamptz
+	ExpiresAt             pgtype.Timestamptz
+	LastUsedAt            pgtype.Timestamptz
+	ReauthenticatedAt     pgtype.Timestamptz
+	RevokedAt             pgtype.Timestamptz
+	RevocationReason      pgtype.Text
+}
+
+type IdentityUser struct {
+	ID                    pgtype.UUID
+	Status                string
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	LastAuthenticatedAt   pgtype.Timestamptz
+	OnboardingCompletedAt pgtype.Timestamptz
+}
+
 type IntegrationInbox struct {
 	Consumer    string
 	EventID     pgtype.UUID

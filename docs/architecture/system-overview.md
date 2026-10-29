@@ -46,3 +46,7 @@ Material 3 usa tokens de cor, tipografia, espaçamento, raio e movimento, tema c
 ## Limites para evolução
 
 Sem autenticação real, CRUD, uploads, admin, chat, notificações ou P2P. O ambiente não processa dados pessoais reais no PR-00. Controle técnico não equivale a conformidade LGPD. Consultar governança e registro administrativo antes de introduzir dados ou fornecedores.
+
+## Evolução PR-01.A
+
+Identity funcional foi acrescentado ao mesmo monólito: três métodos, contas/perfil mínimo, sessão opaca rotativa, reauth/vínculo/unlink, auditoria e webhook Apple. Esquema identity e outbox são transacionais; Redis não é autoridade de acesso ou quotas. Consulte `docs/features/identity.md` para a arquitetura vigente desse módulo. Telas permanecem no ciclo PR-01.B; sem legado conforme ADR 0005. Nenhum serviço deployável adicional foi criado.

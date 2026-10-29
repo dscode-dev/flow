@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"flow.local/backend/internal/identity"
+	identityhttp "flow.local/backend/internal/identity/transport"
 	"flow.local/backend/internal/platform/config"
 	"flow.local/backend/internal/platform/dependencies"
 	"flow.local/backend/internal/platform/httpapi"
@@ -18,6 +20,10 @@ import (
 
 func run(log *slog.Logger) error {
 	c, err := config.Load()
+	if err != nil {
+		return err
+	}
+	identityConfig, err := identity.ParseConfig(os.Getenv)
 	if err != nil {
 		return err
 	}
@@ -38,7 +44,9 @@ func run(log *slog.Logger) error {
 	}
 	defer deps.Close()
 	var draining atomic.Bool
-	server := &http.Server{Addr: c.Address, Handler: httpapi.New(log, deps, c.MaxBodyBytes, c.DependencyTimeout, draining.Load), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
+	identityService := identity.NewService(ctx, deps.Postgres, identityConfig)
+	identityHandler := identityhttp.New(identityService)
+	server := &http.Server{Addr: c.Address, Handler: httpapi.New(log, deps, c.MaxBodyBytes, c.DependencyTimeout, draining.Load, identityHandler.Register), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
 	done := make(chan error, 1)
 	go func() {
 		log.Info("api starting", "address", c.Address, "environment", c.Environment)

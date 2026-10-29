@@ -1,5 +1,6 @@
 # ADR 0002 — Flutter incremental e identidade visual
 
+> Atualização PR-01.A: a decisão explícita de produto no [ADR 0005](0005-fresh-flow.md) encerra a dependência de legado. Este documento preserva o registro histórico PR-00; não orienta procurar ou migrar Rolezin.
 Status: aceito, condicionado ao legado ausente. Data: 27/10/2026.
 
 Decisão: Flutter estável 3.47.8 com Dart 3.13.7, Material 3, Riverpod sem geração obrigatória, go_router, Dio e abstração de secure storage. Tokens reutilizáveis e temas sem redesenho de produto. Login pertence ao PR-01. URLs por ambiente sem host padrão; falhas são sanitizadas.
