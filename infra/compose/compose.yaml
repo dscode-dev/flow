@@ -53,6 +53,21 @@ services:
     depends_on:
       postgres: {condition: service_healthy}
     networks: [flow]
+  storage:
+    image: chrislusf/seaweedfs:4.51
+    command: [mini, '-dir=/data', '-ip=storage', '-ip.bind=0.0.0.0']
+    environment:
+      AWS_ACCESS_KEY_ID: ${MEDIA_S3_ACCESS_KEY:?Execute make env}
+      AWS_SECRET_ACCESS_KEY: ${MEDIA_S3_SECRET_KEY:?Execute make env}
+      S3_BUCKET: ${MEDIA_S3_BUCKET:-flow-covers}
+    ports: ['${HOST_BIND:-127.0.0.1}:${S3_PORT:-18333}:8333']
+    volumes: [media-data:/data]
+    healthcheck:
+      test: [CMD, wget, '-q', '-O', /dev/null, 'http://127.0.0.1:9333/cluster/status']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [flow]
   api:
     build:
       context: ../..
@@ -86,11 +101,23 @@ services:
       TWILIO_VERIFY_SERVICE_SID: ${TWILIO_VERIFY_SERVICE_SID:-}
       GOOGLE_CLIENT_IDS: ${GOOGLE_CLIENT_IDS:-}
       APPLE_CLIENT_IDS: ${APPLE_CLIENT_IDS:-}
+      EXPERIENCES_CREATE_DAILY: ${EXPERIENCES_CREATE_DAILY:-20}
+      EXPERIENCES_PUBLISH_DAILY: ${EXPERIENCES_PUBLISH_DAILY:-20}
+      EXPERIENCES_UPLOAD_DAILY: ${EXPERIENCES_UPLOAD_DAILY:-30}
+      EXPERIENCES_MAX_DRAFTS: ${EXPERIENCES_MAX_DRAFTS:-50}
+      MEDIA_S3_ENDPOINT: ${MEDIA_S3_ENDPOINT:-http://storage:8333}
+      MEDIA_S3_PUBLIC_ENDPOINT: ${MEDIA_S3_PUBLIC_ENDPOINT:-http://127.0.0.1:18333}
+      MEDIA_S3_REGION: ${MEDIA_S3_REGION:-us-east-1}
+      MEDIA_S3_BUCKET: ${MEDIA_S3_BUCKET:-flow-covers}
+      MEDIA_S3_ACCESS_KEY: ${MEDIA_S3_ACCESS_KEY:?Execute make env}
+      MEDIA_S3_SECRET_KEY: ${MEDIA_S3_SECRET_KEY:?Execute make env}
+      MEDIA_S3_SESSION_TOKEN: ${MEDIA_S3_SESSION_TOKEN:-}
     ports: ['${HOST_BIND:-127.0.0.1}:${API_PORT:-18080}:8080']
     depends_on:
       migrate: {condition: service_completed_successfully}
       redis: {condition: service_healthy}
       rabbitmq: {condition: service_healthy}
+      storage: {condition: service_healthy}
     healthcheck:
       test: [CMD, /app/probe, 'http://127.0.0.1:8080/readyz']
       interval: 10s
@@ -112,5 +139,6 @@ volumes:
   postgres-data:
   redis-data:
   rabbitmq-data:
+  media-data:
 networks:
   flow:

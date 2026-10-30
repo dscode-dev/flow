@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
-  title: Flow Identity API
-  version: 1.0.0
-  description: 'PR-01.A: identidade por PHONE, GOOGLE e APPLE. Credenciais opacas Flow; nenhum login por senha.
-    Provedores sem configuração retornam 503.'
+  title: Flow API
+  version: 1.1.0
+  description: 'Identity por PHONE, GOOGLE e APPLE; Experiences e capas S3 verificadas. Credenciais opacas Flow,
+    sem senha. Provedores/storage sem configuração retornam 503; nenhuma homologação externa é presumida.'
 servers:
 - url: /
 paths:
@@ -660,6 +660,791 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AppleNotification'
+  /v1/experience-categories:
+    get:
+      operationId: listExperienceCategories
+      summary: Catálogo habilitado persistido
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExperienceCategories'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+        '412':
+          $ref: '#/components/responses/Error'
+        '413':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Error'
+        '428':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        default:
+          $ref: '#/components/responses/Error'
+  /v1/experiences:
+    post:
+      operationId: createExperience
+      summary: Cria rascunho parcial idempotente
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+            ETag:
+              description: Versão forte; usar literalmente no If-Match.
+              schema:
+                type: string
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Experience'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+        '412':
+          $ref: '#/components/responses/Error'
+        '413':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Error'
+        '428':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Conta ativa, onboarding completo; dono/timestamps geridos pelo servidor. Mesmo corpo/chave retorna
+        snapshot original 201, mesmo se experiência foi editada depois. Reconciliar por GET. Quotas configuráveis
+        por dia UTC e máximo de drafts; nenhum auto retry com chave nova.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExperienceInput'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: 'UUID gerado uma vez por submissão lógica. Escopo conta+operação. Mesma chave/corpo normalizado
+          retorna criação original; conflito 409. Experiência: 24h; upload: autorização 5min, chave não reutilizável.'
+    get:
+      operationId: discoverExperiences
+      summary: Listagem pública pronta para Discovery/Radar
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExperiencePage'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+        '412':
+          $ref: '#/components/responses/Error'
+        '413':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Error'
+        '428':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Somente PUBLIC/PUBLISHED/VISIBLE com ends_at>agora. Ordem starts_at ASC,id ASC; inclui LIVE. Coordenadas+radius_m
+        devem vir juntos; distância geodésica PostGIS em metros. Sem histórico da origem consultada. Cursor assinado,
+        15min, vinculado a usuário/filtros/limit; mudanças concorrentes não produzem snapshot. Query desconhecida/duplicada
+        inválida. UNLISTED/PRIVATE nunca entram.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 2048
+      - name: category_id
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 40
+      - name: phase
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - UPCOMING
+          - LIVE
+      - name: latitude
+        in: query
+        required: false
+        schema:
+          type: number
+          minimum: -90
+          maximum: 90
+      - name: longitude
+        in: query
+        required: false
+        schema:
+          type: number
+          minimum: -180
+          maximum: 180
+      - name: radius_m
+        in: query
+        required: false
+        schema:
+          type: number
+          minimum: 100
+          maximum: 100000
+  /v1/me/experiences:
+    get:
+      operationId: listOwnExperiences
+      summary: Lista experiências do autor
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExperiencePage'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+        '412':
+          $ref: '#/components/responses/Error'
+        '413':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Error'
+        '428':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Somente criador, incluindo histórico e conteúdo retido. Ordem created_at DESC,id DESC. Cursor assinado,
+        15min, ligado ao principal/filtros/limit; fim next_cursor=null.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 2048
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - DRAFT
+          - PUBLISHED
+          - CANCELLED
+          - ARCHIVED
+  /v1/experiences/{experienceId}:
+    get:
+      operationId: getExperience
+      summary: Detalhes autorizados e histórico redigido
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+            ETag:
+              description: Versão forte; usar literalmente no If-Match.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Experience'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+        '412':
+          $ref: '#/components/responses/Error'
+        '413':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Error'
+        '428':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        default:
+          $ref: '#/components/responses/Error'
+      description: 'Bearer obrigatório. PRIVATE ou draft alheio/inexistente/moderado: 404 uniforme. Link UNLISTED
+        permite acesso autenticado após publicar; não equivale a membership. Histórico conserva ID/título/agenda/estado,
+        mas oculta local/descrição/ticket/capa de não autores.'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: replaceExperience
+      summary: Salva documento editável completo com versão
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+            ETag:
+              description: Versão forte; usar literalmente no If-Match.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Experience'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+        '412':
+          $ref: '#/components/responses/Error'
+        '413':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Error'
+        '428':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        default:
+          $ref: '#/components/responses/Error'
+      description: DRAFT aceita parcial e limpeza. PUBLISHED permite apenas título/descrição/ticket/capa, antes do
+        fim. Campos protegidos devem ser reenviados sem alteração. CANCELLED/ARCHIVED não editáveis. Sem mudança normalizada
+        não incrementa versão/evento. JSON estrito, 32KiB máximo.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExperienceInput'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^"[1-9][0-9]*"$
+        description: ETag forte do recurso (ex. "3"). Ausente 428, inválido 400, versão divergente 412; buscar estado
+          atual antes de reenviar.
+  /v1/experiences/{experienceId}/publish:
+    post:
+      operationId: publishExperience
+      summary: Publica com transição explícita
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+            ETag:
+              description: Versão forte; usar literalmente no If-Match.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Experience'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+        '412':
+          $ref: '#/components/responses/Error'
+        '413':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Error'
+        '428':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Somente DRAFT. Título >=3, descrição >=10, categoria habilitada, início/fim UTC com IANA, ponto
+        e venue >=2. Fim futuro; início até 366 dias; duração >0 e <=31 dias. LIVE aceito. Quota diária e restrição
+        de publicação aplicadas, sem aprovação manual. Se já estiver no estado alvo e a versão estiver atual, retorna
+        sem novo evento. Conflito de versão é conferido antes da transição.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmptyTransition'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^"[1-9][0-9]*"$
+        description: ETag forte do recurso (ex. "3"). Ausente 428, inválido 400, versão divergente 412; buscar estado
+          atual antes de reenviar.
+  /v1/experiences/{experienceId}/cancel:
+    post:
+      operationId: cancelExperience
+      summary: Cancela com transição explícita
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+            ETag:
+              description: Versão forte; usar literalmente no If-Match.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Experience'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+        '412':
+          $ref: '#/components/responses/Error'
+        '413':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Error'
+        '428':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        default:
+          $ref: '#/components/responses/Error'
+      description: DRAFT ou PUBLISHED ainda não encerrado. Sem restauração neste ciclo. Remove imediatamente da descoberta;
+        mantém registro/auditoria/outbox. Se já estiver no estado alvo e a versão estiver atual, retorna sem novo
+        evento. Conflito de versão é conferido antes da transição.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmptyTransition'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^"[1-9][0-9]*"$
+        description: ETag forte do recurso (ex. "3"). Ausente 428, inválido 400, versão divergente 412; buscar estado
+          atual antes de reenviar.
+  /v1/experiences/{experienceId}/archive:
+    post:
+      operationId: archiveExperience
+      summary: Arquiva com transição explícita
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+            ETag:
+              description: Versão forte; usar literalmente no If-Match.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Experience'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+        '412':
+          $ref: '#/components/responses/Error'
+        '413':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Error'
+        '428':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        default:
+          $ref: '#/components/responses/Error'
+      description: DRAFT, CANCELLED ou PUBLISHED com ends_at<=agora. Histórico mantém ID e timestamps. Não há delete/restore.
+        Se já estiver no estado alvo e a versão estiver atual, retorna sem novo evento. Conflito de versão é conferido
+        antes da transição.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmptyTransition'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^"[1-9][0-9]*"$
+        description: ETag forte do recurso (ex. "3"). Ausente 428, inválido 400, versão divergente 412; buscar estado
+          atual antes de reenviar.
+  /v1/experiences/{experienceId}/cover:
+    get:
+      operationId: getExperienceCover
+      summary: Lê capa privada via autorização da experiência
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+        '412':
+          $ref: '#/components/responses/Error'
+        '413':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Error'
+        '428':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Mesma autorização do GET detalhe, no-store. Não expõe chave/URL do objeto. Histórico de não autor
+        não tem capa. Sem redirect/presigned GET que sobreviva à autorização.
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /v1/media/uploads:
+    post:
+      operationId: initiateCoverUpload
+      summary: Autoriza POST S3 temporário restrito
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoverUpload'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+        '412':
+          $ref: '#/components/responses/Error'
+        '413':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Error'
+        '428':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        default:
+          $ref: '#/components/responses/Error'
+      description: 'Conta elegível; JPEG/PNG 1..5MiB, quota diária. Autorização 5min vinculada a bucket/chave/tipo/tamanho
+        exato. multipart/form-data direto ao URL: enviar todos os fields e file por último. Não enviar bearer Flow
+        ao S3, não alterar fields nem registrar a autorização. Bucket privado. Retry mesma chave/corpo só enquanto
+        pendente/não expirado; pronto 409, expirado 410. Resposta S3 não confirma imagem: chamar confirm.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CoverUploadInput'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: 'UUID gerado uma vez por submissão lógica. Escopo conta+operação. Mesma chave/corpo normalizado
+          retorna criação original; conflito 409. Experiência: 24h; upload: autorização 5min, chave não reutilizável.'
+  /v1/media/uploads/{mediaId}/confirm:
+    post:
+      operationId: confirmCoverUpload
+      summary: Valida imagem real antes de permitir associação
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoverVerified'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+        '412':
+          $ref: '#/components/responses/Error'
+        '413':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Error'
+        '428':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        default:
+          $ref: '#/components/responses/Error'
+      description: 'Dono apenas (outro: 404). Confere bytes/tipo/tamanho e decodifica JPEG/PNG até 4096 por lado e
+        12MP; reencodifica sem metadados em chave não gravável pelo cliente. READY é idempotente. Inválida 422, expirada
+        410, não pendente 409, ausente/armazenamento indisponível 503. Não aceita URL. cover_media_id só pode referir
+        READY próprio; trocar capa exige PUT condicionado.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmptyTransition'
+      parameters:
+      - name: mediaId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
 components:
   responses:
     Error:
@@ -700,6 +1485,371 @@ components:
       description: Credencial opaca de acesso Flow. Estado da sessão e status da conta sempre verificados no PostgreSQL.
       bearerFormat: opaque
   schemas:
+    ExperienceInput:
+      type: object
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 5000
+        category_id:
+          type: string
+          pattern: ^[a-z][a-z0-9_]{1,39}$
+          nullable: true
+        visibility:
+          type: string
+          enum:
+          - PUBLIC
+          - UNLISTED
+          - PRIVATE
+          default: PRIVATE
+        starts_at:
+          type: string
+          format: date-time
+          nullable: true
+        ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        timezone:
+          type: string
+          maxLength: 100
+          description: IANA explícito (UTC permitido). Local/offsets abreviados não aceitos.
+          nullable: true
+        location:
+          type: object
+          additionalProperties: false
+          properties:
+            latitude:
+              type: number
+              format: double
+              minimum: -90
+              maximum: 90
+            longitude:
+              type: number
+              format: double
+              minimum: -180
+              maximum: 180
+          required:
+          - latitude
+          - longitude
+          nullable: true
+        venue_name:
+          type: string
+          maxLength: 160
+        address:
+          type: string
+          maxLength: 300
+        capacity:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000000
+          nullable: true
+        external_ticket_url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: HTTPS, DNS ASCII/punycode, sem credenciais/fragmento/IP/porta não padrão. Sem fetch ou pagamento
+            Flow.
+          nullable: true
+        cover_media_id:
+          type: string
+          format: uuid
+          nullable: true
+      description: 'POST aceita rascunho parcial. PUT substitui todos os campos editáveis: omissão limpa campos/defaults.
+        Tempo RFC3339 com offset UTC; saída em Z. null limpa opcionais; strings vazias permitidas no draft. Agenda/local/categoria/capacidade/visibilidade
+        imutáveis após publicação.'
+    Experience:
+      type: object
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 5000
+        category_id:
+          type: string
+          pattern: ^[a-z][a-z0-9_]{1,39}$
+          nullable: true
+        visibility:
+          type: string
+          enum:
+          - PUBLIC
+          - UNLISTED
+          - PRIVATE
+          default: PRIVATE
+        starts_at:
+          type: string
+          format: date-time
+          nullable: true
+        ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        timezone:
+          type: string
+          maxLength: 100
+          description: IANA explícito (UTC permitido). Local/offsets abreviados não aceitos.
+          nullable: true
+        location:
+          type: object
+          additionalProperties: false
+          properties:
+            latitude:
+              type: number
+              format: double
+              minimum: -90
+              maximum: 90
+            longitude:
+              type: number
+              format: double
+              minimum: -180
+              maximum: 180
+          required:
+          - latitude
+          - longitude
+          nullable: true
+        venue_name:
+          type: string
+          maxLength: 160
+        address:
+          type: string
+          maxLength: 300
+        capacity:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000000
+          nullable: true
+        external_ticket_url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: HTTPS, DNS ASCII/punycode, sem credenciais/fragmento/IP/porta não padrão. Sem fetch ou pagamento
+            Flow.
+          nullable: true
+        cover_media_id:
+          type: string
+          format: uuid
+          nullable: true
+        id:
+          type: string
+          format: uuid
+        creator_user_id:
+          type: string
+          format: uuid
+        location_type:
+          type: string
+          enum:
+          - PHYSICAL
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - PUBLISHED
+          - CANCELLED
+          - ARCHIVED
+        phase:
+          type: string
+          enum:
+          - UPCOMING
+          - LIVE
+          - ENDED
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+        archived_at:
+          type: string
+          format: date-time
+          nullable: true
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        details_redacted:
+          type: boolean
+      required:
+      - title
+      - description
+      - category_id
+      - visibility
+      - starts_at
+      - ends_at
+      - timezone
+      - location
+      - venue_name
+      - address
+      - capacity
+      - external_ticket_url
+      - cover_media_id
+      - id
+      - creator_user_id
+      - location_type
+      - status
+      - phase
+      - created_at
+      - updated_at
+      - published_at
+      - cancelled_at
+      - archived_at
+      - version
+      - details_redacted
+      description: 'Sem dados Identity privados. PRIVATE e drafts: somente autor. PUBLIC/UNLISTED publicados: acesso
+        direto autenticado. Histórico não autor é redigido: details_redacted=true, description/venue_name/address vazios
+        e location/capacity/ticket/cover nulos. phase é derivado só para PUBLISHED.'
+    ExperiencePage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Experience'
+        next_cursor:
+          type: string
+          maxLength: 2048
+          nullable: true
+      required:
+      - items
+      - next_cursor
+    ExperienceCategory:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        sort_order:
+          type: integer
+          format: int32
+      required:
+      - id
+      - name
+      - sort_order
+    ExperienceCategories:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExperienceCategory'
+      required:
+      - items
+    CoverUploadInput:
+      type: object
+      additionalProperties: false
+      properties:
+        content_type:
+          type: string
+          enum:
+          - image/jpeg
+          - image/png
+        size_bytes:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 5242880
+      required:
+      - content_type
+      - size_bytes
+    CoverUpload:
+      type: object
+      additionalProperties: false
+      properties:
+        media_id:
+          type: string
+          format: uuid
+        upload:
+          type: object
+          additionalProperties: false
+          properties:
+            method:
+              type: string
+              enum:
+              - POST
+            url:
+              type: string
+              format: uri
+            fields:
+              type: object
+              additionalProperties:
+                type: string
+            expires_at:
+              type: string
+              format: date-time
+          required:
+          - method
+          - url
+          - fields
+          - expires_at
+      required:
+      - media_id
+      - upload
+    CoverVerified:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - READY
+        content_type:
+          type: string
+          enum:
+          - image/jpeg
+          - image/png
+        size_bytes:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 5242880
+        width:
+          type: integer
+          minimum: 1
+          maximum: 4096
+        height:
+          type: integer
+          minimum: 1
+          maximum: 4096
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+      required:
+      - id
+      - status
+      - content_type
+      - size_bytes
+      - width
+      - height
+      - sha256
+    EmptyTransition:
+      type: object
+      additionalProperties: false
+      properties: {}
+      required: []
     ErrorEnvelope:
       type: object
       required:
@@ -718,7 +1868,7 @@ components:
               type: string
               description: 'Códigos estáveis: invalid_request, invalid_credential, unauthorized, account_restricted,
                 reauthentication_required, identity_conflict, last_identity, handle_unavailable, onboarding_already_completed,
-                session_limit, rate_limited, provider_unavailable, temporarily_unavailable, payload_too_large.'
+                session_limit, rate_limited, provider_unavailable, temporarily_unavailable, payload_too_large, onboarding_required, experience_invalid, invalid_transition, protected_attributes, version_conflict, precondition_required, idempotency_conflict, draft_limit, publishing_restricted, media_invalid, media_not_ready, upload_not_pending, upload_expired, media_unavailable.'
             message:
               type: string
             request_id:

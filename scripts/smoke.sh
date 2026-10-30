@@ -1,5 +1,5 @@
 #!/bin/sh
-# Somente ambiente local vazio: testa as migrações PR-01.A/PR-00 e Redis.
+# Somente ambiente local vazio: testa as migrações 00003/00002/00001 e Redis.
 set -eu
 cd "$(dirname "$0")/.."
 compose() { docker compose --env-file .env -f infra/compose/compose.yaml "$@"; }
@@ -36,9 +36,19 @@ DO $$ DECLARE n bigint; BEGIN
  IF EXISTS (SELECT FROM integration.outbox) OR EXISTS (SELECT FROM integration.inbox) THEN
   RAISE EXCEPTION 'Smoke exige outbox/inbox vazias';
  END IF;
+ IF EXISTS (SELECT FROM experiences.experiences) OR EXISTS (SELECT FROM media.uploads) THEN
+  RAISE EXCEPTION 'Smoke exige Experiences e Media vazios; preservar dados existentes';
+ END IF;
 END $$;
 SQL
 compose run --rm migrate /app/migrate status
+compose run --rm migrate /app/migrate down
+compose exec -T postgres sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
+DO $$ BEGIN
+ IF to_regnamespace('experiences') IS NOT NULL OR to_regnamespace('media') IS NOT NULL THEN RAISE EXCEPTION 'rollback Experiences/Media incompleto'; END IF;
+ IF to_regclass('identity.users') IS NULL OR to_regclass('integration.outbox') IS NULL THEN RAISE EXCEPTION 'rollback 00003 afetou módulos anteriores'; END IF;
+END $$;
+SQL
 compose run --rm migrate /app/migrate down
 compose exec -T postgres sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
 DO $$ BEGIN
@@ -83,4 +93,4 @@ until curl --silent --fail --max-time 6 "$probe_url/readyz" >/dev/null; do
   if [ "$attempt" -ge 15 ]; then echo 'Readiness não recuperou'; exit 1; fi
   sleep 1
 done
-echo 'Smoke passou: probes, rollback/up Identity e fundação, PostGIS, transação, inbox e recuperação Redis.'
+echo 'Smoke passou: probes, rollback/up Experiences/Media, Identity e fundação, PostGIS, transação, inbox e recuperação Redis.'

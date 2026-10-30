@@ -23,6 +23,15 @@ func session(r *http.Request) *identity.Session {
 	s, _ := r.Context().Value(sessionKey{}).(*identity.Session)
 	return s
 }
+
+// Session returns the principal verified by Protected; never reads client IDs.
+func Session(r *http.Request) *identity.Session { return session(r) }
+
+// Protected reuses Identity's authoritative bearer/session/account checks.
+func (h *Handler) Protected(next http.Handler) http.Handler { return h.protected(next) }
+
+// Limited applies the same origin quota and request deadline across modules.
+func (h *Handler) Limited(next http.Handler) http.Handler { return h.limited(next) }
 func (h *Handler) meta(r *http.Request) identity.Metadata {
 	return identity.Metadata{Origin: h.service.Origin(r.RemoteAddr), RequestID: httpapi.RequestID(r.Context())}
 }

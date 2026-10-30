@@ -1,4 +1,4 @@
-# Flow V1 — fundação e Identity
+# Flow V1 — Identity e Experiences
 
 Flow é uma implementação nova, por decisão de produto no [ADR 0005](docs/decisions/0005-fresh-flow.md), sem migração ou dependência do Rolezin. PR-00 entrega fundação Go/Flutter; PR-01.A entrega Identity por PHONE/GOOGLE/APPLE; PR-01.B implementa autenticação Flutter, onboarding e sessão segura, com configuração/homologação externas pendentes. Ver [Identity](docs/features/identity.md), [contratos mobile](docs/features/identity-mobile-integration.md), [configuração/roteiro físico](docs/features/mobile-authentication.md) e [relatório PR-01.A](docs/architecture/pr-01a-completion-report.md).
 
@@ -16,7 +16,7 @@ make smoke
 make down
 ```
 
-`make env` gera `.env` privado com segredos aleatórios; não sobrescreve existente. Ajuste portas e `HOST_BIND` nesse arquivo. Bind padrão somente loopback; API 18080, PostgreSQL 15432, Redis 16379, AMQP 15672, gestão RabbitMQ 15673. Contratos não contêm hosts fixos. Não usar segredos com caracteres reservados de URL sem percent-encoding na composição de DSNs; os gerados em hexadecimal já são seguros. Não versionar `.env`, dados de volume, certificados ou tokens Mapbox.
+`make env` gera `.env` privado com segredos aleatórios; preserva valores existentes e adiciona chaves novas de módulo. Ajuste portas e `HOST_BIND` nesse arquivo. Bind padrão somente loopback; API18080, PostgreSQL15432, Redis16379, AMQP15672, gestão RabbitMQ15673, S3 privado18333. Contratos não contêm hosts fixos. Não usar segredos com caracteres reservados de URL sem percent-encoding na composição de DSNs; os gerados em hexadecimal já são seguros. Não versionar `.env`, dados de volume, certificados ou tokens Mapbox.
 
 `make up` compila API/migrate/probe, aguarda saúde das dependências, executa goose e inicia API sem root, sem capabilities e com filesystem read-only. Migrações são explícitas, fora do startup da API. `make down` para/remove apenas contêineres/rede deste projeto, preservando volumes. Não use `down -v` se precisar manter dados. Portas internas e loopback no probe de contêiner são detalhes de infraestrutura local, não suposições dos clientes.
 
@@ -27,7 +27,7 @@ make migrate-down
 make migrate-up
 ```
 
-Probes: liveness 200 sem dependências; readiness 200 quando PostgreSQL/Redis/RabbitMQ estão disponíveis, 503 durante falha/encerramento. Endpoints reais de autenticação e self-service estão no OpenAPI; nenhum CRUD Users/admin é exposto. `make smoke` é **somente para ambiente de teste vazio**: faz down/up das migrações Identity e fundação, com guarda para contas/outbox existentes e interrompe Redis temporariamente, verificando recuperação. Nunca executá-lo em produção ou quando houver eventos que devam ser preservados. Rollback não remove PostGIS.
+Probes: liveness200 sem dependências; readiness200 quando PostgreSQL/Redis/RabbitMQ estão disponíveis, 503 durante falha/encerramento. Endpoints reais no OpenAPI; nenhum CRUD Users/admin. `make smoke` é **somente para ambiente de teste vazio**: down/up das três migrations (Experiences/Media, Identity e fundação), com guardas para contas/experiências/mídia/integração existentes; interrompe e restaura Redis. Nunca executar em produção ou com dados a preservar. Rollback não remove PostGIS. S3 indisponível retorna503 nas operações de mídia, sem bloquear experiências sem capa.
 
 Observabilidade opcional: configure `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318` em `.env` e execute:
 
@@ -83,3 +83,9 @@ Retenção operacional: com política revisada, agendar `/app/identity-retention
 Revisão/correções de sessão e validação entre cliente/API estão em [relatório PR-01.C](docs/architecture/pr-01c-completion-report.md). [Configuração por ambiente e checklist externo](docs/features/authentication-release-readiness.md) distinguem estrutura, testes locais, simulador, aparelhos, provedores e CI. IDs finais, marca, URLs e credenciais ainda serão criados pelo proprietário; não há aceite integral de produção.
 
 `make auth-readiness` retorna pendências de configuração sem expor segredos. `make identity-mobile-contract FLUTTER=/caminho/do/sdk/bin/flutter` valida Flutter/Dio contra Go HTTP/OpenAPI e PostgreSQL isolado com upstreams de fixture; não faz SMS/OAuth real. O smoke em `apps/mobile/integration_test/auth_native_test.dart` exige simulador limpo. Nenhuma associação de domínio ou identificador final é presumido.
+
+## Experiences — PR-02.A
+
+Backend físico com drafts, publicação, edições protegidas/ETag, cancelamento/arquivo, categorias, PUBLIC/UNLISTED/PRIVATE, PostGIS, idempotência e auditoria/outbox. [Arquitetura e operação](docs/features/experiences.md), [schema](docs/architecture/experiences-database.md), [contrato Flutter PR-02.B](docs/features/experiences-mobile-integration.md). Sem RSVP/pagamento/feed/admin ou telas Experiences neste PR.
+
+`make up` inclui servidor S3 compatível real local (SeaweedFS4.51, bucket privado/volume próprio). `make experiences-test` valida HTTP/OpenAPI, pgx/PostGIS e uploads reais em **flow_experiences_test** e bucket exclusivo **flow-experiences-test**; recria apenas schemas de teste. `make experiences-maintenance` limpa órfãos/staging/idempotência/quotas e retenção técnica em batches. Produção precisa agendamento, lifecycle/backup/TLS/IAM e fornecedor aprovado; nada foi provisionado em nuvem.

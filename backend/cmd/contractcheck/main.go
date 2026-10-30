@@ -34,6 +34,11 @@ func main() {
 		}
 		fmt.Println("JSON Schema válido:", name)
 	}
+	if err := validateSchema(filepath.Join(base, "events", "experience-payload.schema.json")); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	fmt.Println("JSON Schema válido: experience lifecycle payload v1")
 }
 
 func validateSchema(path string) error {

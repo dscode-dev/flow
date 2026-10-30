@@ -1,4 +1,4 @@
-name: Flow foundation and identity
+name: Flow backend and mobile
 on:
   pull_request:
   push:
@@ -45,6 +45,7 @@ jobs:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
       - run: make identity-test
+      - run: make experiences-test
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.8'

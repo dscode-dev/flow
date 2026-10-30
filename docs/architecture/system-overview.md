@@ -12,7 +12,8 @@ flowchart LR
   Worker[Worker futuro / mesmo módulo] -. outbox .-> PG
   Worker -. confirmação de publicação .-> AMQP
   Gateway[Controle P2P futuro em Go] -. autorizações .-> API
-  Mobile -. mídia futura .-> S3[Origem durável S3 compatível]
+  Mobile -->|POST temporário para capas| S3[Origem privada S3 compatível]
+  API -->|validação e leitura autorizada| S3
 ```
 
 ## Organização e dependências
@@ -50,3 +51,7 @@ Sem autenticação real, CRUD, uploads, admin, chat, notificações ou P2P. O am
 ## Evolução PR-01.A
 
 Identity funcional foi acrescentado ao mesmo monólito: três métodos, contas/perfil mínimo, sessão opaca rotativa, reauth/vínculo/unlink, auditoria e webhook Apple. Esquema identity e outbox são transacionais; Redis não é autoridade de acesso ou quotas. Consulte `docs/features/identity.md` para a arquitetura vigente desse módulo. PR-01.B implementa as telas Flutter, providers nativos, onboarding e sessão segura conforme ADR 0008; configuração/homologação externas pendentes. Sem legado conforme ADR 0005. Nenhum serviço deployável adicional foi criado.
+
+## Evolução PR-02.A
+
+Experiences implementa rascunho/publicação/edição limitada/cancelamento/arquivo, catálogo, visibilidade, PostGIS e consulta pública/own; Media implementa POST S3 temporário, confirmação por reencodificação e limpeza órfã. Dois schemas na migration00003, outbox/auditoria na transação. Readiness continua verificando PG/Redis/Rabbit; disponibilidade S3 é uma capacidade separada (uploads retornam503 na falha), permitindo uso sem capa. Compose local inclui SeaweedFS4.51 privado, sem provisionar nuvem. Flutter Experiences é o próximo ciclo, conforme [contrato PR-02.B](../features/experiences-mobile-integration.md); nenhuma tela nova entregue aqui.

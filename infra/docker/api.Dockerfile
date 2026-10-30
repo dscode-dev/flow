@@ -6,7 +6,8 @@ COPY backend/ ./
 RUN CGO_ENABLED=0 go build -trimpath -o /out/api ./cmd/api && \
     CGO_ENABLED=0 go build -trimpath -o /out/migrate ./cmd/migrate && \
     CGO_ENABLED=0 go build -trimpath -o /out/probe ./cmd/probe && \
-    CGO_ENABLED=0 go build -trimpath -o /out/identity-retention ./cmd/identity-retention
+    CGO_ENABLED=0 go build -trimpath -o /out/identity-retention ./cmd/identity-retention && \
+    CGO_ENABLED=0 go build -trimpath -o /out/experiences-maintenance ./cmd/experiences-maintenance
 
 FROM alpine:3.22
 RUN apk add --no-cache ca-certificates && addgroup -S flow && adduser -S -G flow flow

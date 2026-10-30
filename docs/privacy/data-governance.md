@@ -2,6 +2,27 @@
 
 Status: fundação PR-00 e inventário Identity PR-01.A implementado; validações desta execução usam somente dados sintéticos. Segurança implementada não constitui declaração de conformidade LGPD. Produto, segurança e responsável de privacidade devem validar cada tratamento antes da ativação com pessoas reais.
 
+## Inventário Experiences / Media — PR-02.A
+
+Finalidade: autoria/publicação/consulta de experiências físicas e capa verificada; sem registrar presença, compra, relacionamento ou rastreamento. Fonte: documento explicitamente fornecido pelo criador e arquivo escolhido; autor é referência opaca de Identity. Responsáveis provisórios: engenharia mantém controles; Produto/Privacidade definem audiência, base/avisos/menores, fornecedor/região e prazos antes de pessoas reais. Publicação PUBLIC e link UNLISTED divulgam local/descrição/capa a outras contas; UNLISTED não é um grupo de convidados. O PR-02.B deve mostrar essa consequência antes de publicar, especialmente para residência, menores ou contexto que revele informação íntima.
+
+| Conjunto / dono | Conteúdo, uso e destinatários | Retenção/descarte e controles |
+| --- | --- | --- |
+| experiences.experiences / Experiences | UUID/autor, título/descrição/categoria, agenda UTC/IANA, visibilidade/estado/moderação, ponto físico, venue/endereço opcional, capacidade informativa, ticket externo/capa e versões | Histórico preservado sem delete automático até política/direitos próprios; cancelamento/arquivo não provam eliminação. PRIVATE só autor, UNLISTED direto autenticado, público só após publicar; histórico terceiros redigido e WITHHELD 404 |
+| ponto/endereço / Experiences | Lugar explicitamente escolhido, geography 4326 arredondado6casas; localização precisa pode revelar terceiros/contexto | Sem posição do usuário/rota/histórico de busca. Mesma audiência do agregado; nunca em logs/eventos. Precisão disponível deve ser deliberada na UX; origem de filtro PostGIS transitória |
+| categories / Experiences | Catálogo controlado e labels de apresentação, sem pessoa associada | Persistente; desabilitar conserva FK histórica; acesso autenticado ao catálogo habilitado |
+| idempotência/quotas / Experiences | Conta opaca+key/hash/snapshot original (pode conter local e descrição do draft), contadores por dia UTC | Snapshot TTL24h, excluído pelo comando de manutenção; acesso interno apenas, não analytics. Quotas >2d removidas. Documento idempotente deve ser tratado como dado restrito, não log |
+| restrictions / Experiences | Autor, blocked_until, razão categórica, updated_at | Até revisão/política operacional; sem motivo livre pessoal. Não expõe em resposta; gestão privilegiada futura |
+| uploads / Media | Dono/UUID/key/hash, MIME/tamanho, chaves S3, expiração/estado, dimensão/hash verificado | Staging limpo após expiração+1h; arquivo sem binding removido após24h; tombstones DELETED apagados após30d. Lifecycle staging no fornecedor cobre uploads tardios; configurar/monitorar operação |
+| arquivos/bindings / Media | Bytes fornecidos (incluem metadados temporariamente), variante reencodificada sem EXIF/trailer e vínculo à experiência | S3 privado; só variante verificada é exibida pela autorização da experiência; sem URL arbitrária/público irrestrito. Arquivo associado segue ciclo de origem/direitos; nenhuma cópia P2P/CDN atual |
+| auditoria / Experiences e Media | Ator/recurso/ação/UTC/request_id; experiência inclui versão | Limpeza técnica após180d no comando, acesso restrito separado; sem texto/posição/imagem/prova externa. Política/integridade/retenção operacional precisam de validação |
+| eventos / integração | experience_id/version/status/visibility em outbox, sem conteúdo/local/URL/PII | Retenção da plataforma/replay; pendente não é apagada por idade. Futuro relay/consumidores devem revalidar fonte e aplicar invalidação, sem reabrir audiência |
+| capacidade POST / cliente e S3 | Autorização temporária com chave/assinatura/fields/tamanho/MIME; não é bearer Flow |5min, nunca logs/analytics/persistência pública. Cliente não envia Authorization Flow ao storage. Servidor lê e reencodifica antes de marcar READY |
+
+`experiences-maintenance` implementa prazos técnicos acima em batches limitados, sem serviço de cron de produção provisionado. Ações de exportação/eliminação/restauração de backup devem coordenar agregado, snapshot idempotente, bindings, objetos/variantes, outbox, índices futuros e processadores, preservando somente histórico mínimo autorizado. Não existe endpoint de direitos nem aprovação automática de retenção indefinida neste PR.
+
+S3 local real (SeaweedFS) usa dados sintéticos/volume privado; não comprova aprovação de fornecedor produtivo, região, transferências, criptografia em repouso ou backup. Antes de nuvem, provisionar bloqueio de acesso público/ACL, TLS, credencial mínima, lifecycle, custo/limites, observabilidade sanitizada e revisão contratual de operador. Reencodificação remove metadados mas não avalia conteúdo impróprio nem autoriza divulgação de pessoas fotografadas. URLs de ticket não são buscadas pelo backend, verificadas como pagamento nem compartilhadas em eventos.
+
 Referências oficiais: [LGPD compilada](https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709compilado.htm) e [orientações de segurança da ANPD](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes/anonimizado___guia_orientat-_seg_da_inf_p_atpp.pdf), consultadas em 27/10/2026. Finalidade, necessidade, transparência e segurança orientam as decisões; revisão jurídica/privacidade específica permanece necessária. Prazos abaixo são propostas técnicas, não prazos legais inferidos.
 
 ## Classificação e minimização
@@ -31,7 +52,7 @@ Registrar módulo dono, categorias, titular, fonte, finalidade, base legal valid
 | Outbox publicada/inbox | Proposta: 7 dias outbox publicada, 30 dias inbox, subordinados à janela máxima de replay; não apagar deduplicação antes de encerrar replay/redelivery |
 | Outbox pendente / DLQ futura | Nunca limpeza silenciosa por idade; alerta e resolução controlada, respeitando eliminação/minimização do payload |
 | Sessões/credenciais | PR-01.A: access 10m padrão, sessão absoluta 30d padrão, refresh rotativo e segredos SHA-256; histórico até expiração absoluta +30d |
-| Localização | Não persistir na fundação; qualquer precisão e TTL precisam de justificativa e gate do Radar |
+| Localização | Fundação não coleta localização do usuário; PR-02.A persiste apenas o ponto explicitamente escolhido para a experiência, sem histórico de buscas ou rastreamento |
 | Perfil, participação, social e mensagens | Definir por finalidade no ciclo do módulo; sem prazo genérico indefinido |
 | Mídia, variantes, CDN e caches de peers | Mesma política de audiência/remoção da origem, TTL de cache curto, revogação e inventário de cópias; P2P não permite garantir recuperação de cópia já recebida |
 | Backups | Proposta: janela de 30 dias; acesso mínimo, criptografia, teste de restore e reaplicação de solicitações de exclusão antes de voltar ao serviço |

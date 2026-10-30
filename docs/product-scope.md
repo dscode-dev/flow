@@ -8,4 +8,6 @@ Decisão de produto PR-01.A: Flow é implementação nova, sem recuperar ou migr
 
 V1 inclui módulos descritos em `architecture/module-boundaries.md`. P2P é obrigatório em V1 exclusivamente para mídia social, nunca substitui origem durável ou ACL do servidor. Features serão detalhadas em ciclos próprios; fronteiras de módulos não são promessa de endpoints, cronograma ou serviços separados.
 
+PR-02.A implementa backend de experiências físicas: draft/publicação/edição limitada/cancelamento/arquivo, visibilidade, catálogo persistido, PostGIS, listagens, idempotência/versão/auditoria/outbox e capas S3 verificadas. Sem telas Flutter novas, RSVP/convites/check-in/compra/feed/Event Space/Flows/chat/P2P ou plataforma admin. [Regras e operação](features/experiences.md) e [contrato do próximo PR-02.B](features/experiences-mobile-integration.md).
+
 Critérios globais: acessibilidade, minimização de localização, respeito à audiência, autorização por recurso no servidor, compatibilidade mobile/backend e rastreabilidade de operações administrativas. Segurança técnica não estabelece conformidade LGPD.

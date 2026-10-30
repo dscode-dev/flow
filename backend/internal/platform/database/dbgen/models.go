@@ -8,6 +8,103 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ExperiencesAuditEvent struct {
+	ID           pgtype.UUID
+	ExperienceID pgtype.UUID
+	ActorUserID  pgtype.UUID
+	Action       string
+	Version      int64
+	RequestID    string
+	CreatedAt    pgtype.Timestamptz
+}
+
+type ExperiencesCategory struct {
+	ID        string
+	Name      string
+	Enabled   bool
+	SortOrder int32
+	UpdatedAt pgtype.Timestamptz
+}
+
+type ExperiencesDiscovery struct {
+	ID               pgtype.UUID
+	CreatorUserID    pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	StartsAt         pgtype.Timestamptz
+	EndsAt           pgtype.Timestamptz
+	Status           string
+	Visibility       string
+	ModerationStatus string
+	CategoryID       pgtype.Text
+	Point            interface{}
+	Document         interface{}
+}
+
+type ExperiencesDocument struct {
+	ID               pgtype.UUID
+	CreatorUserID    pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	StartsAt         pgtype.Timestamptz
+	EndsAt           pgtype.Timestamptz
+	Status           string
+	Visibility       string
+	ModerationStatus string
+	CategoryID       pgtype.Text
+	Point            interface{}
+	Document         interface{}
+}
+
+type ExperiencesExperience struct {
+	ID                pgtype.UUID
+	CreatorUserID     pgtype.UUID
+	Title             string
+	Description       string
+	CategoryID        pgtype.Text
+	Visibility        string
+	Status            string
+	ModerationStatus  string
+	StartsAt          pgtype.Timestamptz
+	EndsAt            pgtype.Timestamptz
+	Timezone          pgtype.Text
+	LocationType      string
+	Point             interface{}
+	VenueName         string
+	Address           string
+	Capacity          pgtype.Int4
+	ExternalTicketUrl pgtype.Text
+	CoverMediaID      pgtype.UUID
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	PublishedAt       pgtype.Timestamptz
+	CancelledAt       pgtype.Timestamptz
+	ArchivedAt        pgtype.Timestamptz
+	Version           int64
+}
+
+type ExperiencesIdempotency struct {
+	CreatorUserID pgtype.UUID
+	Key           pgtype.UUID
+	RequestHash   []byte
+	ExperienceID  pgtype.UUID
+	Response      []byte
+	CreatedAt     pgtype.Timestamptz
+	ExpiresAt     pgtype.Timestamptz
+}
+
+type ExperiencesPublishingRestriction struct {
+	CreatorUserID pgtype.UUID
+	BlockedUntil  pgtype.Timestamptz
+	ReasonCode    string
+	UpdatedAt     pgtype.Timestamptz
+}
+
+type ExperiencesRateLimit struct {
+	OwnerUserID pgtype.UUID
+	Operation   string
+	WindowStart pgtype.Timestamptz
+	Count       int32
+}
+
 type IdentityAccessCredential struct {
 	CredentialHash []byte
 	SessionID      pgtype.UUID
@@ -132,4 +229,47 @@ type IntegrationOutbox struct {
 	Payload       []byte
 	CreatedAt     pgtype.Timestamptz
 	PublishedAt   pgtype.Timestamptz
+}
+
+type MediaAuditEvent struct {
+	ID          pgtype.UUID
+	MediaID     pgtype.UUID
+	ActorUserID pgtype.UUID
+	Action      string
+	RequestID   string
+	CreatedAt   pgtype.Timestamptz
+}
+
+type MediaBinding struct {
+	ExperienceID pgtype.UUID
+	MediaID      pgtype.UUID
+	OwnerUserID  pgtype.UUID
+	BoundAt      pgtype.Timestamptz
+}
+
+type MediaRateLimit struct {
+	OwnerUserID pgtype.UUID
+	WindowStart pgtype.Timestamptz
+	Count       int32
+}
+
+type MediaUpload struct {
+	ID               pgtype.UUID
+	OwnerUserID      pgtype.UUID
+	IdempotencyKey   pgtype.UUID
+	RequestHash      []byte
+	Status           string
+	ContentType      string
+	SizeBytes        int64
+	StagingKey       string
+	ObjectKey        string
+	VerifiedSize     pgtype.Int8
+	Width            pgtype.Int4
+	Height           pgtype.Int4
+	Sha256           pgtype.Text
+	ExpiresAt        pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+	ConfirmedAt      pgtype.Timestamptz
+	StagingCleanedAt pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
 }

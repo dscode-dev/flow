@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:flow:events:experience:payload:v1",
+  "title": "Experience lifecycle payload v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["experience_id", "version", "status", "visibility"],
+  "properties": {
+    "experience_id": {"type": "string", "format": "uuid"},
+    "version": {"type": "integer", "minimum": 1},
+    "status": {"enum": ["DRAFT", "PUBLISHED", "CANCELLED", "ARCHIVED"]},
+    "visibility": {"enum": ["PUBLIC", "UNLISTED", "PRIVATE"]}
+  }
+}
