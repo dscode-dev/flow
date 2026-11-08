@@ -4,6 +4,17 @@ import 'package:go_router/go_router.dart';
 import '../auth/auth_state.dart';
 import '../../features/auth/auth_screens.dart';
 import '../../features/onboarding/onboarding_screen.dart';
+import '../../features/experiences/presentation/pages/my_experiences_page.dart';
+import '../../features/experiences/presentation/pages/experience_detail_page.dart';
+import '../../features/experiences/presentation/pages/experience_editor_page.dart';
+
+bool isExperiencePath(String path) =>
+    path == '/app' ||
+    path == '/experiences' ||
+    path == '/experiences/new' ||
+    RegExp(
+      r'^/experiences/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(/edit)?$',
+    ).hasMatch(path);
 
 // Only an explicit local route is retained. Never accept returnTo/absolute URLs.
 String? authRedirect(
@@ -27,7 +38,7 @@ String? authRedirect(
     return path == '/session' ? null : '/session';
   }
   if (auth.status == AuthStatus.authenticated) {
-    return path == destination ? null : destination;
+    return isExperiencePath(path) ? null : destination;
   }
   if (auth.status == AuthStatus.onboardingRequired) {
     return path == '/onboarding' ? null : '/onboarding';
@@ -46,10 +57,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/welcome',
     refreshListenable: auth,
     redirect: (context, state) {
-      if (state.uri.path == '/app' &&
+      if (isExperiencePath(state.uri.path) &&
           state.uri.query.isEmpty &&
           state.uri.fragment.isEmpty) {
-        destination = '/app';
+        destination = state.uri.path;
       }
       return authRedirect(auth.value, state.uri.path, destination: destination);
     },
@@ -60,7 +71,25 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/otp', builder: (_, _) => const OtpScreen()),
       GoRoute(path: '/session', builder: (_, _) => const SessionGateScreen()),
       GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
-      GoRoute(path: '/app', builder: (_, _) => const DevelopmentShell()),
+      GoRoute(path: '/app', builder: (_, _) => const MyExperiencesPage()),
+      GoRoute(
+        path: '/experiences',
+        builder: (_, _) => const MyExperiencesPage(),
+      ),
+      GoRoute(
+        path: '/experiences/new',
+        builder: (_, _) => const ExperienceEditorPage(),
+      ),
+      GoRoute(
+        path: '/experiences/:id/edit',
+        builder: (_, state) =>
+            ExperienceEditorPage(id: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/experiences/:id',
+        builder: (_, state) =>
+            ExperienceDetailPage(state.pathParameters['id']!),
+      ),
     ],
     errorBuilder: (_, _) => const WelcomeScreen(),
   );

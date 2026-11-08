@@ -1,14 +1,21 @@
 SHELL := /bin/sh
-FLUTTER ?= flutter
+FLUTTER ?= $(CURDIR)/flutterw
 SQLC_VERSION := v1.31.1
 COMPOSE := docker compose --env-file .env -f infra/compose/compose.yaml
-.PHONY: env up down logs ps migrate-up migrate-down backend-check mobile-check contracts sqlc smoke identity-test identity-mobile-contract auth-readiness experiences-test experiences-maintenance
+MOBILE_COMPOSE := docker compose --env-file .env --env-file .env.mobile.local -f infra/compose/compose.yaml -f infra/compose/mobile-local.yaml
+.PHONY: env up down logs ps migrate-up migrate-down backend-check mobile-check contracts sqlc smoke identity-test identity-mobile-contract auth-readiness experiences-test experiences-maintenance mobile-local mobile-local-down experiences-mobile-contract
 env:
 	sh scripts/init-env.sh
 	sh scripts/init-identity-env.sh
 	sh scripts/init-media-env.sh
 up: env
 	$(COMPOSE) up -d --build --wait --wait-timeout 180
+mobile-local: env
+	python3 scripts/mobile-local.py
+	$(MOBILE_COMPOSE) up -d --build --wait --wait-timeout 180
+	@echo 'API pronta. Em apps/mobile: ../../flutterw run --release --dart-define-from-file=config/device.local.json'
+mobile-local-down:
+	$(MOBILE_COMPOSE) down
 down:
 	$(COMPOSE) down
 logs:
@@ -39,6 +46,9 @@ auth-readiness:
 
 experiences-test:
 	sh scripts/experiences-test.sh
+
+experiences-mobile-contract:
+	FLOW_FLUTTER_CONTRACT_BIN="$(FLUTTER)" FLOW_EXPERIENCES_TEST_FILTER=TestFlutterExperiencesContract sh scripts/experiences-test.sh
 
 experiences-maintenance:
 	$(COMPOSE) run --rm api /app/experiences-maintenance

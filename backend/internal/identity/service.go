@@ -68,6 +68,9 @@ func NewService(ctx context.Context, pool *pgxpool.Pool, c Config) *Service {
 	if c.TwilioAccountSID != "" {
 		s.sms = provider.NewTwilio(c.TwilioAccountSID, c.TwilioAuthToken, c.TwilioServiceSID)
 	}
+	if c.developmentPhone != nil {
+		s.sms = provider.NewDevelopmentSMS(c.developmentPhone.phone, c.developmentPhone.code, c.HMACKey, s.sms)
+	}
 	if len(c.GoogleClientIDs) > 0 {
 		s.tokens["GOOGLE"] = provider.NewGoogle(ctx, c.GoogleClientIDs)
 	}

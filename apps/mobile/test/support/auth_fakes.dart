@@ -72,6 +72,7 @@ class FakeApi implements IdentityApi {
       onboardingError,
       meError;
   Completer<LoginResult>? refreshGate, loginGate;
+  Completer<AuthChallenge>? challengeGate;
   Completer<FlowUser>? onboardingGate;
   Completer<void>? logoutGate;
   FlowUser serverUser = newUser;
@@ -80,7 +81,7 @@ class FakeApi implements IdentityApi {
     challengeCalls++;
     lastPhone = phone;
     if (challengeError != null) throw challengeError!;
-    return serverChallenge();
+    return challengeGate?.future ?? serverChallenge();
   }
 
   @override

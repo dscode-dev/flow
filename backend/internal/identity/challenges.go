@@ -67,6 +67,9 @@ func (s *Service) Challenge(ctx context.Context, r ChallengeRequest, session *Se
 		if e != nil {
 			return out, e
 		}
+		if s.config.developmentPhone != nil && phone == s.config.developmentPhone.phone && r.Purpose != "login" {
+			return out, ErrUnavailable
+		}
 		subject = s.config.reference("phone", phone)
 		if e = s.limit(ctx, []bucket{{"sms:number:" + subject, time.Hour, s.config.SMSNumberHour}, {"sms:origin:" + meta.Origin, time.Hour, s.config.SMSOriginHour}, {"sms:global:day", 24 * time.Hour, s.config.SMSGlobalDay}, {"sms:global:minute", time.Minute, s.config.SMSGlobalMinute}}); e != nil {
 			return out, e
@@ -177,6 +180,11 @@ func (s *Service) consume(ctx context.Context, p Proof, purpose string, session 
 		if c.Provider != p.Provider || c.Purpose != purpose || (purpose != "login" && (session == nil || uuidText(c.SessionID) != session.ID)) {
 			rejected = ErrCredential
 			return audit(ctx, q, "", "", "auth.verify", "denied", "challenge_binding", meta)
+		}
+		if p.Provider == "PHONE" && purpose != "login" && s.config.developmentPhone != nil &&
+			c.SubjectRef.String == s.config.reference("phone", s.config.developmentPhone.phone) {
+			rejected = ErrCredential
+			return audit(ctx, q, "", "", "auth.verify", "denied", "development_login_only", meta)
 		}
 		if purpose == "link" && c.Status == "consumed" {
 			return lockSession(ctx, q, session, s.config.RecentAuth)

@@ -18,7 +18,7 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
-      - run: python3 -m unittest discover -s scripts -p test_auth_readiness.py
+      - run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - run: make backend-check contracts sqlc
       - run: git diff --exit-code -- backend/internal/platform/database/dbgen
   mobile:
@@ -31,7 +31,7 @@ jobs:
           flutter-version: '3.47.8'
           channel: stable
           cache: true
-      - run: make mobile-check
+      - run: make mobile-check FLUTTER=flutter
       - run: dart format --output=none --set-exit-if-changed apps/mobile/lib apps/mobile/test apps/mobile/integration_test
   infrastructure:
     runs-on: ubuntu-latest
@@ -51,6 +51,7 @@ jobs:
           flutter-version: '3.47.8'
           channel: stable
           cache: true
-      - run: make identity-mobile-contract
+      - run: make identity-mobile-contract FLUTTER=flutter
+      - run: make experiences-mobile-contract FLUTTER=flutter
       - if: always()
         run: docker compose --env-file .env -f infra/compose/compose.yaml down

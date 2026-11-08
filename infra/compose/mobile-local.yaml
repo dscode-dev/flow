@@ -1,0 +1,12 @@
+# Optional LAN access for the development API and private S3 upload endpoint.
+# Databases and other services keep their
+# original loopback bindings. Compose merges ports by host IP/port/target.
+services:
+  api:
+    environment:
+      MEDIA_S3_PUBLIC_ENDPOINT: 'http://${FLOW_MOBILE_BIND_IP}:${S3_PORT:-18333}'
+    ports:
+      - '${FLOW_MOBILE_BIND_IP:?Execute make mobile-local}:${API_PORT:-18080}:8080'
+  storage:
+    ports:
+      - '${FLOW_MOBILE_BIND_IP:?Execute make mobile-local}:${S3_PORT:-18333}:8333'

@@ -48,3 +48,38 @@ func TestConfigAndNormalization(t *testing.T) {
 		t.Fatal("invisible character accepted")
 	}
 }
+
+func TestDevelopmentPhoneConfigurationGuard(t *testing.T) {
+	values := map[string]string{"IDENTITY_HMAC_KEY": strings.Repeat("ab", 32), "FLOW_ENV": "development",
+		"AUTH_DEVELOPMENT_PHONE_ENABLED": "true", "AUTH_DEVELOPMENT_PHONE_NUMBER": "+5511999999999", "AUTH_DEVELOPMENT_SMS_CODE": "123456"}
+	get := func(k string) string { return values[k] }
+	c, err := ParseConfig(get)
+	if err != nil || !c.DevelopmentPhoneLoginEnabled() {
+		t.Fatal("explicit development access not configured", err)
+	}
+	for _, env := range []string{"production", "", "staging"} {
+		values["FLOW_ENV"] = env
+		if _, err = ParseConfig(get); err == nil {
+			t.Fatal("test access enabled outside explicit development/test")
+		}
+	}
+	values["FLOW_ENV"] = "test"
+	if _, err = ParseConfig(get); err != nil {
+		t.Fatal(err)
+	}
+	values["AUTH_DEVELOPMENT_SMS_CODE"] = "not-a-code"
+	if _, err = ParseConfig(get); err == nil {
+		t.Fatal("bad code accepted")
+	}
+	values["AUTH_DEVELOPMENT_SMS_CODE"] = "123456"
+	values["AUTH_DEVELOPMENT_PHONE_NUMBER"] = "11999999999"
+	if _, err = ParseConfig(get); err == nil {
+		t.Fatal("national phone accepted without E.164")
+	}
+	values["AUTH_DEVELOPMENT_PHONE_ENABLED"] = "false"
+	values["FLOW_ENV"] = "production"
+	c, err = ParseConfig(get)
+	if err != nil || c.DevelopmentPhoneLoginEnabled() {
+		t.Fatal("disabled mode was enabled")
+	}
+}

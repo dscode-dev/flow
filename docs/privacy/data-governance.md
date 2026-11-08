@@ -1,6 +1,20 @@
 # Governança de dados — fundação
 
-Status: fundação PR-00 e inventário Identity PR-01.A implementado; validações desta execução usam somente dados sintéticos. Segurança implementada não constitui declaração de conformidade LGPD. Produto, segurança e responsável de privacidade devem validar cada tratamento antes da ativação com pessoas reais.
+Status: fundação PR-00 e inventário Identity PR-01.A implementado; validações automatizadas usam dados sintéticos. A exceção de acesso temporário local usa o telefone autorizado pelo proprietário, conforme inventário ao final. Segurança implementada não constitui declaração de conformidade LGPD. Produto, segurança e responsável de privacidade devem validar cada tratamento antes da ativação com pessoas reais.
+
+## Tratamento mobile Experiences — PR-02.B
+
+Formulário, agenda UTC/IANA, endereço/ponto confirmado e seleção de capa são fornecidos pela pessoa para gerir sua experiência. Sem posição do aparelho, histórico de localização/busca, rastreamento, câmera, vídeo ou analytics novos. PUBLIC e UNLISTED apresentam a consequência de divulgar o local antes de publicar; UNLISTED não significa convite privado. Base/avisos/menores e fornecedores ainda exigem validação dos responsáveis, sem nova declaração de conformidade.
+
+| Tratamento / dono | Destinatários e retenção local | Controle |
+| --- | --- | --- |
+| Formulário/rascunho e tentativa idempotente / mobile Experiences | Em memória durante a edição; após API confirmar, persistência do backend segue inventário abaixo. Sem banco offline/backup local de drafts | Aviso ao descartar; saída/restrição/mudança de conta limpa memória e cancela requests. Encerramento do processo perde alterações não salvas; não afirmar recuperação offline |
+| Galeria / OS, mobile, Media/S3 | Picker recebe escolha explícita; pode criar cópia temporária em cache do OS/plugin, sujeita à limpeza do sistema. App não cria cópia permanente própria. Bytes em memória durante upload/edição | Sem solicitação de metadados completos. Limites antes de decodificar; orientação aplicada e metadados removidos em isolate antes de transmitir. Servidor verifica/reencodifica novamente. Seleção Android recuperada exige confirmação, sem associação automática |
+| Autorização S3 temporária / Media e mobile | Fields/URL somente em memória da intenção de upload, TTL5min; apenas destino autorizado recebe bytes | Nunca bearer/cookies Flow no storage, logs ou analytics de capacidade; sem assinatura em crash report/arquivo público |
+| Capa lida / mobile Experiences | Bytes e pixels somente no widget autorizado; sem ImageProvider/cache global/disco. Descarte em saída, background, mudança de capa ou conta/restrição | GET bearer no-store; nova autorização ao retomar. 404/403 remove representação antiga; redaction não exibe detalhes, coordenadas, ticket ou capa |
+| Ticket externo / mobile | Navegador/aplicativo externo só recebe URL após confirmação de saída. O fornecedor escolhido pode receber dados de navegação conforme sua política | HTTPS sem credenciais/fragmento/IP/porta não padrão; sem WebView privilegiada, fetch de preview, checkout ou promessa de verificação |
+
+`LocationSearch` permanece desativado sem configuração aprovada; não há envio a Mapbox nem resultados artificiais. Ativação futura de geocoding/mapa precisa inventário de consultas, fornecedor/região/telemetria, avisos e retenção próprios. Diagnósticos atuais são categoria e request_id sanitizado, sem textos, posição, imagem, bearer ou autorização de upload. A homologação física da galeria, caches de OS, EXIF e rede ainda deve ser executada; testes sintéticos não substituem revisão/aceite com dados reais.
 
 ## Inventário Experiences / Media — PR-02.A
 
@@ -113,3 +127,7 @@ Quotas e auditoria são controles de segurança, separados de analytics. SMS tem
 A notificação nativa Apple em foreground transporta somente um sinal de mudança, sem subject, usuário, e-mail ou payload. CredentialState usa o metadado Apple já criptografado; não introduz nova coleta nem analytics. Sessão emitida mas não persistida tem revogação tentada por access; saída por access expirado só renova após remover o segredo antigo do disco e se não havia rotação em voo. Falha/rede/401 não autorizam afirmar revogação remota confirmada.
 
 O auditor de configuração lê apenas os arquivos explicitamente selecionados/ambiente e publica categorias booleanas, sem valores. O template mobile aceita somente chaves públicas; segredos Twilio/HMAC/assinatura não são Dart defines. Fixtures do contrato ficam em test/banco isolado, nunca em configuração de produção. Evidências físicas/externas, base legal/finalidade, menores, destinatários/regiões, URLs publicadas, política de retenção e execução operacional ainda exigem aprovação/evidência dos responsáveis; o código não substitui esse aceite.
+
+## Exceção explícita de teste: telefone temporário
+
+O proprietário autorizou um número/código para acesso local ao app sem envio de SMS. Valores ficam somente no `.env` privado do backend; Flutter recebe apenas flag visual. Não há destinatário SMS externo para esse número nesse modo. Referência de entrega é opaca/HMAC, e identidade persistida segue minimização de Identity. Conta/sessões/experiências são reais no banco de desenvolvimento; desativar novas entradas não é eliminação ou revogação automática. Sem logs de credenciais, uso produtivo, vínculo de identidade ou reautenticação por esse provedor. [Uso e desativação](../features/development-phone-login.md).

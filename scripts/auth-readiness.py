@@ -8,6 +8,7 @@ import argparse
 import json
 import os
 import pathlib
+import plistlib
 import re
 import sys
 from urllib.parse import urlsplit
@@ -16,6 +17,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 PUBLIC_KEYS = {
     'FLOW_ENV', 'API_BASE_URL', 'GOOGLE_SERVER_CLIENT_ID', 'GOOGLE_IOS_CLIENT_ID',
     'APPLE_SIGN_IN_ENABLED', 'TERMS_URL', 'PRIVACY_URL', 'LEGAL_LINKS_APPROVED',
+    'DEVELOPMENT_PHONE_LOGIN_ENABLED',
 }
 
 
@@ -46,6 +48,29 @@ def load_environment(path):
     return {**values, **os.environ}
 
 
+def ios_auth_settings():
+    settings = {}
+    for name in ('Auth.xcconfig', 'Auth.local.xcconfig'):
+        path = ROOT / 'apps/mobile/ios/Flutter' / name
+        if not path.exists():
+            continue
+        for line in path.read_text().splitlines():
+            match = re.fullmatch(r'\s*(FLOW_GOOGLE_REVERSED_CLIENT_ID|FLOW_IOS_BUNDLE_IDENTIFIER|FLOW_CODE_SIGN_ENTITLEMENTS)\s*=\s*([^\n]*?)\s*', line)
+            if match:
+                settings[match[1]] = match[2].split('//', 1)[0].strip()
+    return settings
+
+
+def ios_apple_entitlement(settings):
+    root = (ROOT / 'apps/mobile/ios').resolve()
+    path = (root / settings.get('FLOW_CODE_SIGN_ENTITLEMENTS', 'Runner/Runner.entitlements')).resolve()
+    try:
+        path.relative_to(root)
+        return 'Default' in plistlib.loads(path.read_bytes()).get('com.apple.developer.applesignin', [])
+    except (OSError, ValueError, plistlib.InvalidFileException):
+        return False
+
+
 def audit(config_path, server_env_path):
     checks = []
     def check(code, passed, owner, action):
@@ -54,7 +79,7 @@ def audit(config_path, server_env_path):
     try:
         public = json.loads(config_path.read_text())
         valid = (isinstance(public, dict) and set(public) <= PUBLIC_KEYS and
-                 all(isinstance(v, bool) if k in {'APPLE_SIGN_IN_ENABLED', 'LEGAL_LINKS_APPROVED'} else isinstance(v, str)
+                 all(isinstance(v, bool) if k in {'APPLE_SIGN_IN_ENABLED', 'LEGAL_LINKS_APPROVED', 'DEVELOPMENT_PHONE_LOGIN_ENABLED'} else isinstance(v, str)
                      for k, v in public.items()))
     except (OSError, ValueError, UnicodeError):
         valid = False
@@ -66,6 +91,9 @@ def audit(config_path, server_env_path):
     except (OSError, UnicodeError):
         server = {}
     check('environment', public.get('FLOW_ENV') == 'production' and server.get('FLOW_ENV') == 'production', 'Mobile/Infra', 'Separar configuração de produção e homologação; release exige FLOW_ENV=production no app e no servidor.')
+    check('development_phone_disabled', public.get('DEVELOPMENT_PHONE_LOGIN_ENABLED', False) is False and
+          server.get('AUTH_DEVELOPMENT_PHONE_ENABLED', 'false') in ('', 'false'),
+          'Backend/Mobile', 'Desabilitar o acesso temporário por telefone antes de produção; telefone/código ficam somente no servidor.')
     api = public.get('API_BASE_URL', '')
     check('api_https', secure_url(api) and api.endswith('/') and not urlsplit(api).query and not urlsplit(api).fragment,
           'Infra', 'Definir origem API HTTPS aprovada, sem credenciais/query/fragment e com barra final; validar DNS/TLS no ambiente real.')
@@ -84,20 +112,17 @@ def audit(config_path, server_env_path):
     pbx = (ROOT / 'apps/mobile/ios/Runner.xcodeproj/project.pbxproj').read_text()
     bundles = set(re.findall(r'PRODUCT_BUNDLE_IDENTIFIER\s*=\s*([^;]+);', pbx))
     app_bundles = {v.strip().strip('"') for v in bundles if not v.strip().strip('"').endswith('.RunnerTests')}
-    native_id_ok = len(app_bundles) == 1 and all(configured(v) and not v.startswith('com.example.') for v in app_bundles)
+    ios_settings = ios_auth_settings()
+    app_bundles = {v.replace('$(FLOW_IOS_BUNDLE_IDENTIFIER)', ios_settings.get('FLOW_IOS_BUNDLE_IDENTIFIER', '')) for v in app_bundles}
+    native_id_ok = len(app_bundles) == 1 and all(configured(v) and '$' not in v and not v.startswith(('com.example.', 'dev.flow.local.')) for v in app_bundles)
     check('ios_bundle', native_id_ok, 'Apple Developer/Mobile', 'Aprovar bundle e aplicar em todos os build configurations e App ID Apple.')
     check('ios_signing_team', bool(re.search(r'DEVELOPMENT_TEAM\s*=\s*[A-Z0-9]{10};', pbx)),
           'Apple Developer/Mobile', 'Selecionar equipe/provisionamento compatível com bundle, Keychain e Sign in with Apple; não versionar chaves.')
-    local = ROOT / 'apps/mobile/ios/Flutter/Auth.local.xcconfig'
-    reversed_id = ''
-    if local.exists():
-        match = re.search(r'^\s*FLOW_GOOGLE_REVERSED_CLIENT_ID\s*=\s*([^\n]*)', local.read_text(), re.M)
-        if match:
-            reversed_id = match[1].strip()
+    reversed_id = ios_settings.get('FLOW_GOOGLE_REVERSED_CLIENT_ID', '')
     check('ios_google_callback', bool(ios_google) and reversed_id == '.'.join(str(ios_google).split('.')[::-1]),
           'Mobile/Google Cloud', 'Preencher Auth.local.xcconfig com reversed client ID correspondente; confirmar Info.plist no app compilado.')
     apple_ids = {v.strip() for v in server.get('APPLE_CLIENT_IDS', '').split(',') if v.strip()}
-    check('apple_native', public.get('APPLE_SIGN_IN_ENABLED') is True and native_id_ok and app_bundles <= apple_ids,
+    check('apple_native', public.get('APPLE_SIGN_IN_ENABLED') is True and native_id_ok and app_bundles <= apple_ids and ios_apple_entitlement(ios_settings),
           'Apple Developer/Backend', 'Habilitar capability no App ID e provisioning; configurar APPLE_CLIENT_IDS com bundle real e notificação HTTPS.')
     twilio = (server.get('TWILIO_ACCOUNT_SID', ''), server.get('TWILIO_VERIFY_SERVICE_SID', ''), server.get('TWILIO_AUTH_TOKEN', ''))
     check('twilio_verify', bool(re.fullmatch(r'AC[0-9a-fA-F]{32}', twilio[0])) and bool(re.fullmatch(r'VA[0-9a-fA-F]{32}', twilio[1])) and len(twilio[2]) >= 16,

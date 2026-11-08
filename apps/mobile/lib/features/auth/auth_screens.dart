@@ -9,6 +9,13 @@ import '../../core/auth/auth_state.dart';
 import '../../design/tokens.dart';
 import 'legal_links.dart';
 
+// Presentation only. The server alone verifies codes and issues sessions.
+bool get developmentPhoneLogin =>
+    const bool.fromEnvironment('DEVELOPMENT_PHONE_LOGIN_ENABLED') &&
+    {'development', 'test'}.contains(
+      const String.fromEnvironment('FLOW_ENV', defaultValue: 'development'),
+    );
+
 class AuthLayout extends StatelessWidget {
   const AuthLayout({
     super.key,
@@ -194,6 +201,10 @@ class WelcomeScreen extends StatelessWidget {
       busy: state.busy,
       children: [
         const Text('Como você quer continuar?'),
+        if (developmentPhoneLogin) ...[
+          const SizedBox(height: 8),
+          const Text('Ambiente de testes · acesso temporário por telefone'),
+        ],
         const SizedBox(height: 16),
         AuthFeedback(state),
         FilledButton.icon(
@@ -271,8 +282,12 @@ class _PhoneScreenState extends State<PhoneScreen> {
 
       return AuthLayout(
         eyebrow: 'Seu telefone',
-        title: 'Vamos enviar\num código.',
-        description: 'Informe seu número com DDD. Você também pode usar um número internacional com + e código do país.',
+        title: developmentPhoneLogin
+            ? 'Seu acesso\nde teste.'
+            : 'Vamos enviar\num código.',
+        description: developmentPhoneLogin
+            ? 'Informe o número com DDD liberado para este teste. Depois, digite o código de teste informado.'
+            : 'Informe seu número com DDD. Você também pode usar um número internacional com + e código do país.',
         back: () {
           auth.backToWelcome();
           context.go('/welcome');
@@ -335,8 +350,10 @@ class _PhoneScreenState extends State<PhoneScreen> {
             ),
           ],
           const SizedBox(height: 16),
-          const Text(
-            'A solicitação não confirma a entrega do SMS. O serviço valida os países atendidos.',
+          Text(
+            developmentPhoneLogin
+                ? 'Para o número de teste, não há envio de SMS. Aguarde a abertura da tela de código.'
+                : 'A solicitação não confirma a entrega do SMS. O serviço valida os países atendidos.',
           ),
         ],
       );
@@ -372,8 +389,12 @@ class _OtpScreenState extends State<OtpScreen> {
           : remaining(state.retryAt!, auth.now());
       return AuthLayout(
         eyebrow: 'Confirme seu número',
-        title: 'Confira seu SMS.',
-        description: 'Digite o código da solicitação mais recente. Não compartilhe esse código.',
+        title: developmentPhoneLogin
+            ? 'Digite o código\nde teste.'
+            : 'Confira seu SMS.',
+        description: developmentPhoneLogin
+            ? 'Use o código de teste informado. O acesso só será liberado após a confirmação.'
+            : 'Digite o código da solicitação mais recente. Não compartilhe esse código.',
         back: () {
           auth.backToWelcome();
           context.go('/phone');

@@ -6,6 +6,8 @@ Flow é uma implementação nova, por decisão de produto no [ADR 0005](docs/dec
 
 Go 1.27.3, Flutter 3.47.8 (Dart 3.13.7), Docker Engine/Compose v2, Python 3 e curl. SDKs Android/iOS e assinatura para executar em aparelhos. Não é necessário instalar PostgreSQL, Redis, RabbitMQ, goose ou sqlc globalmente.
 
+Flutter está fixado em `.flutter-version`. Use `./flutterw` na raiz (ou `../../flutterw` dentro de `apps/mobile`): o SDK oficial fica em `.toolchains/`, ignorado pelo Git, com instalação inicial via Git/rede. O diretório é persistente e independente do Flutter global/PATH; não usar instalações em `/private/tmp` nos comandos habituais. `make mobile-check` usa esse wrapper por padrão; `FLUTTER=...` continua permitindo outra instalação, como o SDK já preparado pela CI.
+
 ## Ambiente local
 
 ```sh
@@ -41,10 +43,24 @@ Collector recebe somente na rede Docker, sem porta pública. Traces são amostra
 
 ## Mobile
 
+Para o iPhone usar a API local deste Mac:
+
+```sh
+make mobile-local
+cd apps/mobile
+../../flutterw run --release --dart-define-from-file=config/device.local.json
+```
+
+O comando detecta o IPv4 privado do Mac, inicia a stack e libera API e S3 privado para upload de capas nesse IP; banco, Redis e RabbitMQ continuam em loopback. Não altere `HOST_BIND` para expor dependências. Mac/iPhone precisam estar na mesma rede; permita Rede Local no iPhone quando solicitado e mantenha Docker/backend ligados. Se necessário, selecione a interface com `FLOW_MOBILE_BIND_IP=<IPv4 do Mac> make mobile-local`. Se mudar de rede/IP, execute novamente e recompile: dart-defines são incorporados no build. `.env.mobile.local` e `config/device.local.json` são ignorados pelo Git. Para encerrar, `make mobile-local-down` preserva os volumes.
+
+Esse ambiente usa HTTP de desenvolvimento e Apple desativado para Personal Team. Twilio/Google/Apple continuam exigindo credenciais reais; não há login simulado. O bucket S3 permanece privado e o backend emite a autorização de upload com o endpoint alcançável, sem reescrever assinaturas no cliente. A permissão iOS de rede local é declarada sem liberar TLS globalmente.
+
+Para outro backend configurado:
+
 ```sh
 cd apps/mobile
-flutter pub get --enforce-lockfile
-flutter run --dart-define=FLOW_ENV=development --dart-define=API_BASE_URL=https://SEU_HOST/
+../../flutterw pub get --enforce-lockfile
+../../flutterw run --dart-define=FLOW_ENV=development --dart-define=API_BASE_URL=https://SEU_HOST/
 ```
 
 Use URL HTTPS alcançável pelo aparelho e com barra final. `SEU_HOST` é substituído pelo endpoint do ambiente; não há default embutido. Dart-define é configuração pública, nunca secret injection. HTTP de desenvolvimento pode exigir configuração nativa restrita específica; não desabilite TLS globalmente no release. IDs `com.example`, ícones padrão e assinatura são provisórios e impedem publicação até serem substituídos por valores aprovados. Roteiro físico e associação de links em [workflow](docs/architecture/development-workflow.md).
@@ -63,6 +79,8 @@ make mobile-check
 Arquitetura em [visão geral](docs/architecture/system-overview.md), [módulos](docs/architecture/module-boundaries.md), [contratos](contracts/README.md), [ADRs](docs/decisions/0001-modular-go.md), [P2P](docs/architecture/p2p-v1.md), [governança](docs/privacy/data-governance.md) e [capacidades administrativas](docs/admin-capabilities.md). PRs futuros devem atualizar o registro administrativo conforme o impacto da feature.
 
 ## Identity — configuração e testes
+
+Acesso temporário local por telefone/código pode ser habilitado explicitamente para um único número, sem envio de SMS e com sessão/onboarding reais. Desativado por padrão e recusado em produção. [Configuração, uso e desativação](docs/features/development-phone-login.md); número/código ficam apenas no `.env` privado do servidor.
 
 `make env` também gera a chave HMAC local quando ausente/vazia; API falha se ela estiver inválida. Sem credenciais externas, provedores ficam indisponíveis (503), sem simular entrega ou login. Preencher TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN/TWILIO_VERIFY_SERVICE_SID, GOOGLE_CLIENT_IDS e APPLE_CLIENT_IDS somente com valores reais do proprietário. Consulte os [pré-requisitos](docs/features/identity.md) e o [ADR SMS](docs/decisions/0007-sms-provider.md). Não colocar credenciais de servidor em dart-define.
 
@@ -85,6 +103,8 @@ Revisão/correções de sessão e validação entre cliente/API estão em [relat
 `make auth-readiness` retorna pendências de configuração sem expor segredos. `make identity-mobile-contract FLUTTER=/caminho/do/sdk/bin/flutter` valida Flutter/Dio contra Go HTTP/OpenAPI e PostgreSQL isolado com upstreams de fixture; não faz SMS/OAuth real. O smoke em `apps/mobile/integration_test/auth_native_test.dart` exige simulador limpo. Nenhuma associação de domínio ou identificador final é presumido.
 
 ## Experiences — PR-02.A
+
+PR-02.B entrega o cliente Flutter de criação/gestão integrado: [telas, navegação e operação](docs/features/flutter-experiences.md). Para verificar contra Go/PostGIS/S3 reais, execute `make experiences-mobile-contract` com a stack ativa. Sessões sintéticas só existem no harness de teste isolado, sem bypass no app.
 
 Backend físico com drafts, publicação, edições protegidas/ETag, cancelamento/arquivo, categorias, PUBLIC/UNLISTED/PRIVATE, PostGIS, idempotência e auditoria/outbox. [Arquitetura e operação](docs/features/experiences.md), [schema](docs/architecture/experiences-database.md), [contrato Flutter PR-02.B](docs/features/experiences-mobile-integration.md). Sem RSVP/pagamento/feed/admin ou telas Experiences neste PR.
 

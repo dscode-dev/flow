@@ -30,6 +30,10 @@
 	<key>CFBundleURLSchemes</key><array><string>$(FLOW_GOOGLE_REVERSED_CLIENT_ID)</string></array></dict></array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Conectar ao servidor de desenvolvimento do Flow na sua rede local durante testes.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Selecionar uma foto para a capa da experiência que você está criando.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

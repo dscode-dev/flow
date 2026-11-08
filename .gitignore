@@ -3,6 +3,7 @@
 !.env.example
 build/
 .dart_tool/
+.toolchains/
 .flutter-plugins*
 .DS_Store
 *.iml

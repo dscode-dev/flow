@@ -29,6 +29,9 @@ func run(log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	if identityConfig.DevelopmentPhoneLoginEnabled() {
+		log.Warn("development phone authentication enabled; no SMS is sent for the configured test number")
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	shutdownTrace, err := telemetry.Setup(ctx, c.OTLPEndpoint, log)

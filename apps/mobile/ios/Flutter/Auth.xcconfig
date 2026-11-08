@@ -1,3 +1,7 @@
 // No final identifiers are assumed. Configure the approved reversed iOS OAuth ID locally.
 FLOW_GOOGLE_REVERSED_CLIENT_ID =
+// Local Personal Team builds can select Runner/RunnerPersonal.entitlements.
+// The default keeps Apple capability for properly provisioned program teams.
+FLOW_CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements
+FLOW_IOS_BUNDLE_IDENTIFIER = com.example.flowMobile
 #include? "Auth.local.xcconfig"

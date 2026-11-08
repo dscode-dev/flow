@@ -15,7 +15,12 @@ type Config struct {
 	OTPAttempts, SMSNumberHour, SMSOriginHour, SMSGlobalDay, SMSGlobalMinute, OriginMinute, MaxSessions int
 	GoogleClientIDs, AppleClientIDs, PhoneRegions                                                       []string
 	TwilioAccountSID, TwilioAuthToken, TwilioServiceSID                                                 string
+	developmentPhone                                                                                    *developmentPhoneConfig
 }
+
+type developmentPhoneConfig struct{ phone, code string }
+
+func (c Config) DevelopmentPhoneLoginEnabled() bool { return c.developmentPhone != nil }
 
 func ParseConfig(get func(string) string) (Config, error) {
 	c := Config{}
@@ -96,6 +101,21 @@ func ParseConfig(get func(string) string) (Config, error) {
 		if !regexp.MustCompile(`^AC[0-9a-fA-F]{32}$`).MatchString(c.TwilioAccountSID) || len(c.TwilioAuthToken) < 16 || !regexp.MustCompile(`^VA[0-9a-fA-F]{32}$`).MatchString(c.TwilioServiceSID) {
 			return c, fmt.Errorf("configuração Twilio incompleta ou inválida")
 		}
+	}
+	flag := get("AUTH_DEVELOPMENT_PHONE_ENABLED")
+	if flag != "" && flag != "true" && flag != "false" {
+		return c, fmt.Errorf("AUTH_DEVELOPMENT_PHONE_ENABLED deve ser true ou false")
+	}
+	if flag == "true" {
+		if env := get("FLOW_ENV"); env != "development" && env != "test" {
+			return c, fmt.Errorf("acesso temporário por telefone permitido somente em development/test explícito")
+		}
+		phone, e := (&Service{config: c}).normalizePhone(get("AUTH_DEVELOPMENT_PHONE_NUMBER"))
+		code := get("AUTH_DEVELOPMENT_SMS_CODE")
+		if e != nil || !regexp.MustCompile(`^[0-9]{6}$`).MatchString(code) {
+			return c, fmt.Errorf("configure um telefone E.164 permitido e código temporário de seis dígitos")
+		}
+		c.developmentPhone = &developmentPhoneConfig{phone: phone, code: code}
 	}
 	return c, nil
 }

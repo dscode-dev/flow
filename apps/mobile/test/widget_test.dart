@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,10 +11,18 @@ import 'package:flow_mobile/core/navigation/router.dart';
 import 'package:flow_mobile/features/auth/legal_links.dart';
 
 import 'support/auth_fakes.dart';
+import 'support/experience_fakes.dart';
+
+import 'package:flow_mobile/features/experiences/data/experiences_repository.dart';
 
 Future<ProviderContainer> mount(WidgetTester tester, Rig rig) async {
   final container = ProviderContainer(
-    overrides: [authControllerProvider.overrideWithValue(rig.auth)],
+    overrides: [
+      authControllerProvider.overrideWithValue(rig.auth),
+      experiencesRepositoryProvider.overrideWithValue(
+        FakeExperiencesRepository(),
+      ),
+    ],
   );
   addTearDown(() {
     container.dispose();
@@ -26,6 +36,57 @@ Future<ProviderContainer> mount(WidgetTester tester, Rig rig) async {
 }
 
 void main() {
+  testWidgets(
+    'telefone aguarda desafio e confirmação; código recusado não abre o app',
+    (tester) async {
+      final rig = Rig();
+      await rig.auth.restore();
+      final challenge = Completer<AuthChallenge>();
+      rig.api.challengeGate = challenge;
+      final container = await mount(tester, rig);
+      await tester.tap(find.text('Continuar com telefone'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Telefone com DDD'),
+        '(81) 99999-9999',
+      );
+      await tester.ensureVisible(find.text('Solicitar código'));
+      await tester.tap(find.text('Solicitar código'));
+      await tester.pump();
+      expect(rig.auth.value.busy, true);
+      expect(find.text('Código de verificação'), findsNothing);
+      expect(
+        container.read(routerProvider).routeInformationProvider.value.uri.path,
+        '/phone',
+      );
+      challenge.complete(serverChallenge());
+      await tester.pumpAndSettle();
+      expect(find.text('Código de verificação'), findsOneWidget);
+      rig.api.loginError = const AuthIssue('invalid_credential');
+      await tester.enterText(find.byType(TextFormField), '000000');
+      await tester.ensureVisible(find.text('Confirmar código'));
+      await tester.tap(find.text('Confirmar código'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('Não foi possível validar esta tentativa.'),
+        findsOneWidget,
+      );
+      expect(find.text('Minhas experiências'), findsNothing);
+      rig.api.loginError = null;
+      final login = Completer<LoginResult>();
+      rig.api.loginGate = login;
+      await tester.enterText(find.byType(TextFormField), '123456');
+      await tester.ensureVisible(find.text('Confirmar código'));
+      await tester.tap(find.text('Confirmar código'));
+      await tester.pump();
+      expect(rig.auth.value.busy, true);
+      expect(find.text('Minhas experiências'), findsNothing);
+      rig.auth.lifecycle(false);
+      login.complete(result(user: completeUser));
+      await tester.pumpAndSettle();
+      expect(find.text('Minhas experiências'), findsOneWidget);
+    },
+  );
   test('configuração recusa origem insegura e links legais não aprováveis', () {
     for (final raw in [
       'http://api.example/',
@@ -106,9 +167,8 @@ void main() {
     await tester.ensureVisible(find.text('Concluir perfil'));
     await tester.tap(find.text('Concluir perfil'));
     await tester.pumpAndSettle();
-    expect(find.text('AMBIENTE DE DESENVOLVIMENTO'), findsOneWidget);
-    await tester.ensureVisible(find.text('Sair da conta'));
-    await tester.tap(find.text('Sair da conta'));
+    expect(find.text('Minhas experiências'), findsOneWidget);
+    await tester.tap(find.byTooltip('Sair da conta'));
     await tester.pumpAndSettle();
     expect(find.text('Continuar com telefone'), findsOneWidget);
   });

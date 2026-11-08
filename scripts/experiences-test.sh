@@ -14,5 +14,7 @@ env['MEDIA_S3_ENDPOINT']='http://127.0.0.1:'+value('S3_PORT','18333')
 env['MEDIA_S3_PUBLIC_ENDPOINT']=env['MEDIA_S3_ENDPOINT']
 for k in ('MEDIA_S3_REGION','MEDIA_S3_BUCKET','MEDIA_S3_ACCESS_KEY','MEDIA_S3_SECRET_KEY'): env[k]=value(k)
 os.chdir('backend')
-os.execvpe('go',['go','test','-tags=integration','./internal/experiences/integration','-count=1','-v'],env)
+args=['go','test','-tags=integration','./internal/experiences/integration','-count=1','-v']
+if env.get('FLOW_EXPERIENCES_TEST_FILTER'): args.extend(['-run',env['FLOW_EXPERIENCES_TEST_FILTER']])
+os.execvpe('go',args,env)
 PY

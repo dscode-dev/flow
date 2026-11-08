@@ -1,0 +1,23 @@
+#!/bin/sh
+# Project SDK, stored persistently and independently of the terminal PATH.
+set -eu
+flow_project_root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+case "${1:-}" in
+  run|build) python3 "$flow_project_root/scripts/mobile-config.py" "$@" ;;
+esac
+flow_flutter_version=$(cat "$flow_project_root/.flutter-version")
+if ! printf '%s\n' "$flow_flutter_version" | LC_ALL=C grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+  echo 'Versão inválida em .flutter-version.' >&2
+  exit 1
+fi
+flow_flutter_sdk="$flow_project_root/.toolchains/flutter-$flow_flutter_version"
+if [ ! -x "$flow_flutter_sdk/bin/flutter" ]; then
+  if [ -e "$flow_flutter_sdk" ]; then
+    echo "SDK incompleto em $flow_flutter_sdk; revise a instalação antes de continuar." >&2
+    exit 1
+  fi
+  mkdir -p "$flow_project_root/.toolchains"
+  echo "Instalando Flutter $flow_flutter_version no diretório persistente do projeto..." >&2
+  git clone --depth 1 --branch "$flow_flutter_version" https://github.com/flutter/flutter.git "$flow_flutter_sdk"
+fi
+exec "$flow_flutter_sdk/bin/flutter" "$@"
