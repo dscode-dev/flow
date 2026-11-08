@@ -32,6 +32,23 @@ Experience sampleExperience({
 
 class FakeExperiencesRepository implements ExperiencesRepository {
   @override
+  Future<Map<String, dynamic>> radarDocument(
+    Map<String, dynamic> query, {
+    CancelToken? cancel,
+  }) async {
+    check();
+    return {
+      'as_of': '2026-11-08T12:00:00Z',
+      'valid_until': '2026-11-08T12:01:00Z',
+      'items': <dynamic>[],
+      'truncated': false,
+      'limit': 100,
+      'min_zoom': 4,
+      'max_span_degrees': 30,
+    };
+  }
+
+  @override
   Future<Map<String, dynamic>> homeDocument(
     Map<String, dynamic> query, {
     CancelToken? cancel,

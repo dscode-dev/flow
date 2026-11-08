@@ -15,6 +15,8 @@ import 'package:flow_mobile/features/experiences/domain/experience_issue.dart';
 import 'package:flow_mobile/features/experiences/domain/experience_time.dart';
 import 'package:flow_mobile/features/home/home_controller.dart';
 import 'package:flow_mobile/features/home/home_model.dart';
+import 'package:flow_mobile/features/radar/radar_controller.dart';
+import 'package:flow_mobile/features/radar/radar_model.dart';
 
 import 'support/auth_fakes.dart' show MemoryStore, FakeSocial;
 
@@ -163,6 +165,20 @@ void main() {
       expect(published.status, ExperienceStatus.published);
       expect((await outsider.get(draft.id)).detailsRedacted, false);
       expect((await outsider.cover(draft.id)), isNotEmpty);
+      final radar = RadarController(repo, access);
+      addTearDown(radar.dispose);
+      radar.viewport(
+        const RadarBounds(-35.1, -8.3, -34.8, -8.0),
+        const RadarCamera(GeoPoint(-8.12, -34.99), 10),
+      );
+      await radar.refresh(force: true);
+      expect(radar.value.issue, isNull);
+      expect(radar.value.document!.items.single.id, draft.id);
+      expect(radar.value.document!.truncated, false);
+      await radar.setFilters(const RadarFilters(phase: 'LIVE'));
+      expect(radar.value.document!.items, isEmpty);
+      await radar.setFilters(const RadarFilters());
+      radar.pause();
       final home = HomeController(repo, access);
       addTearDown(home.dispose);
       await home.load();
@@ -261,7 +277,10 @@ void main() {
         throwsA(isA<ExperienceIssue>().having((e) => e.status, 'status', 404)),
       );
       await http.post<void>('__fixture/revoke');
-      await expectLater(repo.homeDocument({}), throwsA(isA<AuthIssue>()));
+      await expectLater(
+        repo.radarDocument({'bbox': '-35.1,-8.3,-34.8,-8.0', 'zoom': 10}),
+        throwsA(isA<AuthIssue>()),
+      );
       expect(auth.value.status, AuthStatus.sessionExpired);
       expect(access.ownerId, isNull);
       expect(store.data, isNull);

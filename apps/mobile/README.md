@@ -1,5 +1,7 @@
 # Flow mobile
 
+PR-04: Radar em `/radar`, acessível pela Home, com SDK oficial Mapbox3.34.2, clustering nativo, filtros/preview e localização aproximada opcional. Sem token, somente Radar fica indisponível; não há mapa fictício. Adicionar MAPBOX_PUBLIC_ACCESS_TOKEN (`pk...`) ao arquivo público local ignorado e recompilar usando o wrapper. Nunca passar `sk...` ou credencial de download em Dart defines. [Configuração, privacidade e gate físico](../../docs/features/radar.md). Wrapper habilita o bypass Always do geolocator_apple SPM; Android usa Kotlin integrado do AGP9 compatível com Flutter3.47.8 e apenas COARSE_LOCATION.
+
 PR-03: `/app` agora abre o Início com descoberta real, categorias contextuais, seleção manual de região aproximada e cards para os detalhes existentes. Gestão permanece em “Minhas experiências” (`/experiences`). Sem conteúdo público elegível, o vazio é esperado. [Critérios, privacidade, testes e limites](../../docs/features/home-discovery.md). `make mobile-local` na raiz atualiza a API antes de recompilar o app com o comando abaixo; não exige mudar a assinatura pessoal.
 
 Para acesso temporário local pelo fluxo de telefone, consulte [modo de desenvolvimento](../../docs/features/development-phone-login.md). O app espera o challenge e a confirmação do código pelo servidor; não aceita credenciais nem cria sessão localmente. `make mobile-local` gera a flag visual correta no arquivo público local, sem incluir número/código.

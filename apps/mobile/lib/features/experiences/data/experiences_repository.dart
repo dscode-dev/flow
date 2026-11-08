@@ -99,6 +99,10 @@ class VerifiedCover {
 }
 
 abstract interface class ExperiencesRepository {
+  Future<Map<String, dynamic>> radarDocument(
+    Map<String, dynamic> query, {
+    CancelToken? cancel,
+  });
   Future<Map<String, dynamic>> homeDocument(
     Map<String, dynamic> query, {
     CancelToken? cancel,
@@ -254,6 +258,18 @@ class DioExperiencesRepository implements ExperiencesRepository {
     }
   }
 
+  @override
+  Future<Map<String, dynamic>> radarDocument(
+    Map<String, dynamic> query, {
+    CancelToken? cancel,
+  }) async =>
+      (await _call(
+            'GET',
+            'v1/radar/experiences',
+            query: query,
+            cancel: cancel,
+          )).data
+          as Map<String, dynamic>;
   @override
   Future<Map<String, dynamic>> homeDocument(
     Map<String, dynamic> query, {

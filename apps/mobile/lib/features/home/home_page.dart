@@ -138,21 +138,23 @@ class _HomePageState extends ConsumerState<HomePage>
         top: false,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: Row(
+          child: Wrap(
+            alignment: WrapAlignment.spaceEvenly,
             children: [
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: () => _controller.load(),
-                  icon: const Icon(Icons.home_outlined),
-                  label: const Text('Início'),
-                ),
+              TextButton.icon(
+                onPressed: () => _controller.load(),
+                icon: const Icon(Icons.home_outlined),
+                label: const Text('Início'),
               ),
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: () => _open('/experiences'),
-                  icon: const Icon(Icons.calendar_month_outlined),
-                  label: const Text('Minhas experiências'),
-                ),
+              TextButton.icon(
+                onPressed: () => _open('/radar'),
+                icon: const Icon(Icons.radar),
+                label: const Text('Radar'),
+              ),
+              TextButton.icon(
+                onPressed: () => _open('/experiences'),
+                icon: const Icon(Icons.calendar_month_outlined),
+                label: const Text('Minhas experiências'),
               ),
             ],
           ),

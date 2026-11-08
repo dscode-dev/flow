@@ -7,5 +7,12 @@
   "DEVELOPMENT_PHONE_LOGIN_ENABLED": false,
   "TERMS_URL": "",
   "PRIVACY_URL": "",
-  "LEGAL_LINKS_APPROVED": false
+  "LEGAL_LINKS_APPROVED": false,
+  "MAPBOX_PUBLIC_ACCESS_TOKEN": "",
+  "MAPBOX_STYLE_LIGHT": "mapbox://styles/mapbox/light-v11",
+  "MAPBOX_STYLE_DARK": "mapbox://styles/mapbox/dark-v11",
+  "RADAR_THEME": "system",
+  "RADAR_INITIAL_LATITUDE": "0",
+  "RADAR_INITIAL_LONGITUDE": "0",
+  "RADAR_INITIAL_ZOOM": "2"
 }

@@ -32,6 +32,8 @@
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Conectar ao servidor de desenvolvimento do Flow na sua rede local durante testes.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Centralizar o Radar na sua região aproximada somente quando você solicitar. Não rastreamos deslocamentos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Selecionar uma foto para a capa da experiência que você está criando.</string>
 	<key>UIApplicationSceneManifest</key>

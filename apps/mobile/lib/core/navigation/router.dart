@@ -8,9 +8,11 @@ import '../../features/experiences/presentation/pages/my_experiences_page.dart';
 import '../../features/experiences/presentation/pages/experience_detail_page.dart';
 import '../../features/experiences/presentation/pages/experience_editor_page.dart';
 import '../../features/home/home_page.dart';
+import '../../features/radar/radar_page.dart';
 
 bool isExperiencePath(String path) =>
     path == '/app' ||
+    path == '/radar' ||
     path == '/experiences' ||
     path == '/experiences/new' ||
     RegExp(
@@ -73,6 +75,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/session', builder: (_, _) => const SessionGateScreen()),
       GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
       GoRoute(path: '/app', builder: (_, _) => const HomePage()),
+      GoRoute(path: '/radar', builder: (_, _) => const RadarPage()),
       GoRoute(
         path: '/experiences',
         builder: (_, _) => const MyExperiencesPage(),
