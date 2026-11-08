@@ -10,6 +10,15 @@ spec.loader.exec_module(config)
 
 
 class MobileConfigTests(unittest.TestCase):
+    def test_mapbox_secret_never_becomes_dart_define(self):
+        base = ['run', '-DAPI_BASE_URL=https://api.flow.invalid/']
+        for value in ('sk.private-value', 'not-a-public-token'):
+            error = config.configuration_error(base + ['-DMAPBOX_PUBLIC_ACCESS_TOKEN=' + value])
+            self.assertIsNotNone(error)
+            self.assertNotIn(value, error)
+        self.assertIsNotNone(config.configuration_error(base + ['-DMAPBOX_DOWNLOADS_TOKEN=private-value']))
+        self.assertIsNone(config.configuration_error(base))
+
     def test_temporary_phone_flag_cannot_be_built_as_production(self):
         self.assertIsNotNone(config.configuration_error([
             'run', '-DFLOW_ENV=production', '-DAPI_BASE_URL=https://api.flow.invalid/',

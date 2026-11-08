@@ -60,7 +60,7 @@ func run(log *slog.Logger) error {
 		return err
 	}
 	mediaService := media.New(deps.Postgres, media.NewStorage(storageConfig), experiencesConfig.UploadDaily)
-	experiencesHandler := experiences.NewHandler(experiences.New(deps.Postgres, mediaService, experiencesConfig), mediaService, identityHandler)
+	experiencesHandler := experiences.NewHandler(experiences.New(deps.Postgres, mediaService, experiencesConfig), mediaService, identityHandler, log)
 	server := &http.Server{Addr: c.Address, Handler: httpapi.New(log, deps, c.MaxBodyBytes, c.DependencyTimeout, draining.Load, identityHandler.Register, experiencesHandler.Register), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
 	done := make(chan error, 1)
 	go func() {

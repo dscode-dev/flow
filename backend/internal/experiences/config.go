@@ -11,6 +11,7 @@ type Config struct {
 	CreateDaily, PublishDaily, UploadDaily, MaxDrafts int
 	CursorKey                                         []byte
 	HomeSoonHours, HomeRadiusM, HomeLimit             int
+	RadarLimit, RadarMinZoom, RadarMaxSpan            int
 }
 
 func ParseConfig(get func(string) string, key []byte) (Config, error) {
@@ -19,7 +20,7 @@ func ParseConfig(get func(string) string, key []byte) (Config, error) {
 		k   string
 		def int
 		dst *int
-	}{{"EXPERIENCES_CREATE_DAILY", 20, &c.CreateDaily}, {"EXPERIENCES_PUBLISH_DAILY", 20, &c.PublishDaily}, {"EXPERIENCES_UPLOAD_DAILY", 30, &c.UploadDaily}, {"EXPERIENCES_MAX_DRAFTS", 50, &c.MaxDrafts}, {"HOME_SOON_HOURS", 48, &c.HomeSoonHours}, {"HOME_RADIUS_M", 25000, &c.HomeRadiusM}, {"HOME_SECTION_LIMIT", 6, &c.HomeLimit}} {
+	}{{"EXPERIENCES_CREATE_DAILY", 20, &c.CreateDaily}, {"EXPERIENCES_PUBLISH_DAILY", 20, &c.PublishDaily}, {"EXPERIENCES_UPLOAD_DAILY", 30, &c.UploadDaily}, {"EXPERIENCES_MAX_DRAFTS", 50, &c.MaxDrafts}, {"HOME_SOON_HOURS", 48, &c.HomeSoonHours}, {"HOME_RADIUS_M", 25000, &c.HomeRadiusM}, {"HOME_SECTION_LIMIT", 6, &c.HomeLimit}, {"RADAR_RESULT_LIMIT", 100, &c.RadarLimit}, {"RADAR_MIN_ZOOM", 4, &c.RadarMinZoom}, {"RADAR_MAX_SPAN_DEGREES", 30, &c.RadarMaxSpan}} {
 		n := p.def
 		if v := get(p.k); v != "" {
 			var e error
@@ -37,6 +38,12 @@ func ParseConfig(get func(string) string, key []byte) (Config, error) {
 			min, max = 1000, 100000
 		case "HOME_SECTION_LIMIT":
 			max = 8
+		case "RADAR_RESULT_LIMIT":
+			max = 200
+		case "RADAR_MIN_ZOOM":
+			max = 12
+		case "RADAR_MAX_SPAN_DEGREES":
+			max = 60
 		}
 		if n < min || n > max {
 			return c, fmt.Errorf("%s inválido", p.k)

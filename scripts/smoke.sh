@@ -1,5 +1,5 @@
 #!/bin/sh
-# Somente ambiente local vazio: testa as migrações 00004/00003/00002/00001 e Redis.
+# Somente ambiente local vazio: testa as migrações 00005/00004/00003/00002/00001 e Redis.
 set -eu
 cd "$(dirname "$0")/.."
 compose() { docker compose --env-file .env -f infra/compose/compose.yaml "$@"; }
@@ -42,6 +42,12 @@ DO $$ DECLARE n bigint; BEGIN
 END $$;
 SQL
 compose run --rm migrate /app/migrate status
+compose run --rm migrate /app/migrate down
+compose exec -T postgres sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
+DO $$ BEGIN
+ IF to_regclass('experiences.experiences_public_viewport') IS NOT NULL OR to_regclass('experiences.experiences_public_recent') IS NULL THEN RAISE EXCEPTION 'rollback índice Radar afetou Home'; END IF;
+END $$;
+SQL
 compose run --rm migrate /app/migrate down
 compose exec -T postgres sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
 DO $$ BEGIN

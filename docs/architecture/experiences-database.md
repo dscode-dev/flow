@@ -1,5 +1,7 @@
 # Persistência Experiences / Media — migration 00003
 
+PR-04 acrescenta `00005_radar_viewport.sql`: GiST parcial de `(point::geometry)` em PUBLIC/PUBLISHED/VISIBLE para envelopes lon/lat retangulares. Geography/índices anteriores permanecem para distância. Não altera agregados, visibilidade, outbox ou schemas de conteúdo. Down00005 remove apenas o índice; harness isolado reverte00005/00004/00003 até2 para validar preservação de Identity/outbox/PostGIS. Query e política em [Radar](../features/radar.md).
+
 PR-03 acrescenta `00004_home_discovery.sql`: somente índice parcial `experiences_public_recent(created_at DESC,id DESC)` para PUBLIC/PUBLISHED/VISIBLE. Não altera conteúdo, autoria ou visões. Down00004 remove apenas esse índice; teste isolado reverte00004/00003 até2 preservando Identity/outbox/PostGIS. Query Home usa seis branches limitados no mesmo statement, reutilizando visão/índices de agenda, categoria e GiST; [regras e limites](../features/home-discovery.md). Rollback continua proibido como smoke em banco com dados de aplicação.
 
 Goose `00003_experiences_media.sql` adiciona schemas próprios sem alterar 00001/00002. Up cria Media mínimo antes de Experiences; Down remove FK binding, Experiences e Media e preserva Identity/outbox/PostGIS. Down apaga dados desses módulos: testar somente banco isolado; produção requer plano/backup próprio. Smoke recusa banco principal com contas, experiências, mídia ou integração existentes.

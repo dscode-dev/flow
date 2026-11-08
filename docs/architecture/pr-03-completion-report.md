@@ -65,7 +65,13 @@ Google/Apple/Twilio e distribuição definitivos, HTTPS/origem e operação de p
 
 ## 11. Status
 
-**PR-03 tecnicamente concluído no escopo local**, com os testes e builds acima. API de desenvolvimento recompilada e índice aplicado por make mobile-local, preservando conta/volumes. Probes/índice conferidos após a atualização. HEAD permanece b0fa1cde6fbc5e3b83a534da054ff90e8d5f5a0d;33 arquivos novos/alterados, índice Git vazio. Não há aprovação de produção ou teste físico implícitos. Nenhuma alteração de Git remoto foi executada.
+**PR-03 tecnicamente concluído no escopo local**, com os testes e builds acima. API de desenvolvimento recompilada e índice aplicado por make mobile-local, preservando conta/volumes. Probes/índice conferidos após a atualização. No fechamento de07/11, HEAD permanecia b0fa1cde6fbc5e3b83a534da054ff90e8d5f5a0d;33 arquivos novos/alterados, índice Git vazio. Não há aprovação de produção ou teste físico implícitos. Nenhuma alteração de Git remoto foi executada pelo agente.
+
+### Retomada — 08/11/2026
+
+Na retomada, `main` já continha a entrega no commit `f7fcab2dd996ac95f1fb80eb04d017c896a51359` (`PR-03 Parcial`), com árvore/índice limpos e os33 arquivos incorporados. Esse commit já existia; não foi criado nesta execução. O código corresponde à implementação validada acima. Os logs temporários anteriores não estavam mais presentes; os resultados acima registram a execução de07/11 e não são apresentados como testes repetidos nesta retomada.
+
+Docker Desktop estava desligado e a API indisponível. Docker foi iniciado e `make mobile-local` concluiu, mantendo os volumes, a configuração de acesso temporário e as configurações nativas. Conferência por leitura após a subida: `/healthz`200, `/readyz`200, `/v1/home` sem sessão401, índice `experiences_public_recent` presente. Apenas este relatório foi atualizado no código versionado durante a retomada; nenhuma nova implementação, staging, commit, push, merge, publicação externa ou instalação física foi realizada. Para atualizar o iPhone, executar em `apps/mobile`: `../../flutterw run --release --dart-define-from-file=config/device.local.json`.
 
 ## 12. Preparação exata para PR-04 — Radar
 

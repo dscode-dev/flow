@@ -1,5 +1,7 @@
 # Início / Home Discovery — PR-03
 
+PR-04 acrescentou [Radar](radar.md) à navegação real, preservando a composição abaixo. A seção de preparação ao final registra a fronteira original do PR-03; configuração/gates atuais do Mapbox estão no guia Radar.
+
 OpenAPI **1.2.0**, `GET /v1/home`, sessão Flow ativa, mesmo middleware/limite de origem de Experiences. Entrada Flutter `/app`; gestão em `/experiences`; cards abrem `/experiences/{id}` existente. Não há novas dependências, cliente HTTP, autenticação ou papel administrativo.
 
 ## Contrato e limites

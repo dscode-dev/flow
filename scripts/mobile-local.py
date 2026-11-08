@@ -55,6 +55,17 @@ def main():
     values = json.loads(config.read_text()) if config.exists() else {}
     if not isinstance(values, dict):
         raise ValueError('device.local.json deve conter um objeto JSON.')
+    # Keep the public Mapbox token/styles across network and backend refreshes.
+    for key, default in {
+        'MAPBOX_PUBLIC_ACCESS_TOKEN': '',
+        'MAPBOX_STYLE_LIGHT': 'mapbox://styles/mapbox/light-v11',
+        'MAPBOX_STYLE_DARK': 'mapbox://styles/mapbox/dark-v11',
+        'RADAR_THEME': 'system',
+        'RADAR_INITIAL_LATITUDE': '0',
+        'RADAR_INITIAL_LONGITUDE': '0',
+        'RADAR_INITIAL_ZOOM': '2',
+    }.items():
+        values.setdefault(key, default)
     values.update(FLOW_ENV='development', API_BASE_URL=f'http://{ip}:{port}/',
                   APPLE_SIGN_IN_ENABLED=False,
                   DEVELOPMENT_PHONE_LOGIN_ENABLED=services['api']['environment'].get('AUTH_DEVELOPMENT_PHONE_ENABLED') == 'true')

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Flow API
-  version: 1.2.0
+  version: 1.3.0
   description: 'Identity por PHONE, GOOGLE e APPLE; Experiences e capas S3 verificadas. Credenciais opacas Flow,
     sem senha. Provedores/storage sem configuração retornam 503; nenhuma homologação externa é presumida.'
 servers:
@@ -700,6 +700,108 @@ paths:
           $ref: '#/components/responses/Error'
         '429':
           $ref: '#/components/responses/RateLimited'
+        default:
+          $ref: '#/components/responses/Error'
+  /v1/radar/experiences:
+    get:
+      operationId: radarExperiences
+      summary: Marcadores públicos elegíveis no viewport
+      description: >-
+        Reutiliza experiences.discovery. PUBLIC/PUBLISHED/VISIBLE e ends_at > as_of.
+        Bbox inclusiva west,south,east,north; west > east cruza o antimeridiano.
+        Latitude Mercator limitada a +/-85.051129. Zoom0..22; abaixo de RADAR_MIN_ZOOM
+        (default4), amplitude maior que RADAR_MAX_SPAN_DEGREES (default30, máximo60)
+        retorna400 radar_area_too_large; não há consulta global irrestrita.
+        Ordenação starts_at/id ASC. limit padrão100, teto configurado RADAR_RESULT_LIMIT
+        até200. Busca limit+1 e informa truncated; sem total/cursor, aproximar/refinar
+        para outros candidatos. Clusters no cliente contam somente estes itens.
+        Período opcional from/until UTC, intervalo semiaberto de até31 dias:
+        starts_at < until e ends_at > from, preservando exclusão dos já encerrados.
+        Distância requer latitude/longitude/radius_m juntos; centro arredondado a2 casas.
+        Query até2048 bytes, JSON até1MiB, statement timeout via contexto2s, no-store.
+        valid_until marca o vencimento (até60s ou próxima fronteira temporal);
+        cliente descarta pins vencidos e oferece atualização, sem polling contínuo.
+        Erros não indicam existência privada. Parâmetros vazios/duplicados/desconhecidos
+        ou não finitos são400; sem cache ou persistência de histórico de câmera.
+      security:
+      - bearerAuth: []
+      parameters:
+      - in: query
+        name: bbox
+        required: true
+        description: west,south,east,north em graus; amplitude limitada e antimeridiano suportado.
+        schema:
+          type: string
+          maxLength: 120
+      - in: query
+        name: zoom
+        required: true
+        schema:
+          type: number
+          minimum: 0
+          maximum: 22
+      - in: query
+        name: category_id
+        description: 'ID de categoria real; inexistente resulta vazio.'
+        schema:
+          type: string
+      - in: query
+        name: phase
+        description: 'LIVE ou UPCOMING; tempo autoritativo.'
+        schema:
+          type: string
+          enum: [LIVE, UPCOMING]
+      - in: query
+        name: from
+        description: 'Início do período UTC; exige until.'
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: until
+        description: 'Fim exclusivo UTC; exige from.'
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: latitude
+        description: 'Centro de referência opcional; exige longitude e radius_m.'
+        schema:
+          type: number
+      - in: query
+        name: longitude
+        description: 'Centro de referência opcional.'
+        schema:
+          type: number
+      - in: query
+        name: radius_m
+        description: 'Raio1000..100000m; exige par de coordenadas.'
+        schema:
+          type: number
+      - in: query
+        name: limit
+        description: 'Entre1 e teto operacional; default100, máximo200.'
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+      responses:
+        '200':
+          description: Candidatos limitados; truncated não indica cobertura completa da região.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RadarPage'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
         default:
           $ref: '#/components/responses/Error'
   /v1/home:
@@ -1791,6 +1893,80 @@ components:
       description: 'Sem dados Identity privados. PRIVATE e drafts: somente autor. PUBLIC/UNLISTED publicados: acesso
         direto autenticado. Histórico não autor é redigido: details_redacted=true, description/venue_name/address vazios
         e location/capacity/ticket/cover nulos. phase é derivado só para PUBLISHED.'
+    RadarPage:
+      type: object
+      additionalProperties: false
+      required: [as_of, valid_until, items, truncated, limit, min_zoom, max_span_degrees]
+      properties:
+        as_of:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+        items:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/RadarMarker'
+        truncated:
+          type: boolean
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 200
+        min_zoom:
+          type: integer
+        max_span_degrees:
+          type: integer
+    RadarMarker:
+      type: object
+      additionalProperties: false
+      required: [id, title, category_id, category_name, location, starts_at, ends_at, timezone, venue_name, cover_media_id, version, phase, external_ticket]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 120
+        category_id:
+          type: string
+        category_name:
+          type: string
+        location:
+          type: object
+          additionalProperties: false
+          required: [latitude, longitude]
+          properties:
+            latitude:
+              type: number
+            longitude:
+              type: number
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+        venue_name:
+          type: string
+          maxLength: 160
+        cover_media_id:
+          type: string
+          format: uuid
+          nullable: true
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        phase:
+          type: string
+          enum: [LIVE, UPCOMING]
+        external_ticket:
+          type: boolean
     Home:
       type: object
       additionalProperties: false

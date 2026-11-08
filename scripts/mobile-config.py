@@ -2,6 +2,7 @@
 """Validate compile-time app configuration without printing define values."""
 import json
 import pathlib
+import re
 import sys
 from urllib.parse import urlsplit
 
@@ -61,6 +62,13 @@ def configuration_error(args):
         return 'FLOW_ENV deve ser development, test ou production.'
     if environment == 'production' and defines.get('DEVELOPMENT_PHONE_LOGIN_ENABLED') in (True, 'true'):
         return 'Desabilite DEVELOPMENT_PHONE_LOGIN_ENABLED para produção.'
+    map_token = defines.get('MAPBOX_PUBLIC_ACCESS_TOKEN', '')
+    # Empty public token is allowed: only Radar is unavailable. Never compile a secret token.
+    if not isinstance(map_token, str) or (map_token and not re.fullmatch(r'pk\.[A-Za-z0-9._-]{20,4096}', map_token)):
+        return 'Mapbox requer token público pk.; token secreto ou inválido não pode ser incorporado ao app.'
+    for key, value in defines.items():
+        if 'MAPBOX' in key and ('SECRET' in key or 'DOWNLOAD' in key or 'ADMIN' in key):
+            return 'Credenciais privadas Mapbox não são dart-defines.'
     raw = defines.get('API_BASE_URL', '')
     if not isinstance(raw, str) or not raw:
         return ('API_BASE_URL ausente: informe --dart-define-from-file=config/device.local.json '

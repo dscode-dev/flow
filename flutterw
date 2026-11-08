@@ -20,4 +20,6 @@ if [ ! -x "$flow_flutter_sdk/bin/flutter" ]; then
   echo "Instalando Flutter $flow_flutter_version no diretório persistente do projeto..." >&2
   git clone --depth 1 --branch "$flow_flutter_version" https://github.com/flutter/flutter.git "$flow_flutter_sdk"
 fi
+# geolocator_apple SPM: this app only requests foreground permission.
+export BYPASS_PERMISSION_LOCATION_ALWAYS=1
 exec "$flow_flutter_sdk/bin/flutter" "$@"

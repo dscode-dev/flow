@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"math"
 	"mime"
 	"net/http"
@@ -23,10 +24,15 @@ type Handler struct {
 	service *Service
 	media   *media.Service
 	auth    *identityhttp.Handler
+	log     *slog.Logger
 }
 
-func NewHandler(s *Service, m *media.Service, auth *identityhttp.Handler) *Handler {
-	return &Handler{s, m, auth}
+func NewHandler(s *Service, m *media.Service, auth *identityhttp.Handler, logs ...*slog.Logger) *Handler {
+	log := slog.Default()
+	if len(logs) > 0 && logs[0] != nil {
+		log = logs[0]
+	}
+	return &Handler{service: s, media: m, auth: auth, log: log}
 }
 func respond(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -35,7 +41,7 @@ func respond(w http.ResponseWriter, status int, v any) {
 }
 func failure(w http.ResponseWriter, r *http.Request, err error) {
 	f := identity.SafeFailure(err)
-	messages := map[string]string{"invalid_request": "Requisição inválida.", "unauthorized": "Autenticação necessária.", "account_restricted": "Conta indisponível.", "onboarding_required": "Conclua a configuração da conta.", "not_found": "Recurso não encontrado.", "experience_invalid": "Confira os dados da experiência.", "invalid_transition": "Operação indisponível neste estado.", "protected_attributes": "Agenda, local e visibilidade publicados estão protegidos.", "version_conflict": "A experiência foi alterada. Atualize os dados.", "precondition_required": "Informe a versão atual da experiência.", "idempotency_conflict": "Chave já utilizada com outros dados.", "draft_limit": "Limite de rascunhos atingido.", "publishing_restricted": "Publicação indisponível para esta experiência ou conta.", "rate_limited": "Aguarde antes de tentar novamente.", "media_invalid": "Imagem inválida ou fora dos limites.", "media_not_ready": "Capa indisponível para associação.", "upload_not_pending": "Upload não está pendente.", "upload_expired": "Autorização de upload expirada.", "media_unavailable": "Armazenamento temporariamente indisponível.", "temporarily_unavailable": "Serviço temporariamente indisponível."}
+	messages := map[string]string{"invalid_request": "Requisição inválida.", "radar_area_too_large": "Aproxime o mapa para consultar esta região.", "unauthorized": "Autenticação necessária.", "account_restricted": "Conta indisponível.", "onboarding_required": "Conclua a configuração da conta.", "not_found": "Recurso não encontrado.", "experience_invalid": "Confira os dados da experiência.", "invalid_transition": "Operação indisponível neste estado.", "protected_attributes": "Agenda, local e visibilidade publicados estão protegidos.", "version_conflict": "A experiência foi alterada. Atualize os dados.", "precondition_required": "Informe a versão atual da experiência.", "idempotency_conflict": "Chave já utilizada com outros dados.", "draft_limit": "Limite de rascunhos atingido.", "publishing_restricted": "Publicação indisponível para esta experiência ou conta.", "rate_limited": "Aguarde antes de tentar novamente.", "media_invalid": "Imagem inválida ou fora dos limites.", "media_not_ready": "Capa indisponível para associação.", "upload_not_pending": "Upload não está pendente.", "upload_expired": "Autorização de upload expirada.", "media_unavailable": "Armazenamento temporariamente indisponível.", "temporarily_unavailable": "Serviço temporariamente indisponível."}
 	message := messages[f.Code]
 	if message == "" {
 		message = "Operação indisponível."
@@ -117,6 +123,7 @@ func (h *Handler) Register(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(h.auth.Limited, h.auth.Protected)
 		r.Get("/v1/home", h.home)
+		r.Get("/v1/radar/experiences", h.radar)
 		r.Get("/v1/experience-categories", func(w http.ResponseWriter, r *http.Request) {
 			out, e := h.service.Categories(r.Context())
 			if e != nil {

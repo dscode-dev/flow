@@ -86,6 +86,7 @@ type Querier interface {
 	PruneIdentityRefreshHistory(ctx context.Context) (int64, error)
 	PruneIdentitySessionAccess(ctx context.Context) (int64, error)
 	PruneIdentitySessions(ctx context.Context) (int64, error)
+	RadarExperiences(ctx context.Context, arg RadarExperiencesParams) ([][]byte, error)
 	ReadyMediaUpload(ctx context.Context, arg ReadyMediaUploadParams) error
 	ReauthenticateIdentitySession(ctx context.Context, arg ReauthenticateIdentitySessionParams) error
 	RegisterAppleNotification(ctx context.Context, digest []byte) (int64, error)
