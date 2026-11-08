@@ -10,6 +10,7 @@ import (
 type Config struct {
 	CreateDaily, PublishDaily, UploadDaily, MaxDrafts int
 	CursorKey                                         []byte
+	HomeSoonHours, HomeRadiusM, HomeLimit             int
 }
 
 func ParseConfig(get func(string) string, key []byte) (Config, error) {
@@ -18,7 +19,7 @@ func ParseConfig(get func(string) string, key []byte) (Config, error) {
 		k   string
 		def int
 		dst *int
-	}{{"EXPERIENCES_CREATE_DAILY", 20, &c.CreateDaily}, {"EXPERIENCES_PUBLISH_DAILY", 20, &c.PublishDaily}, {"EXPERIENCES_UPLOAD_DAILY", 30, &c.UploadDaily}, {"EXPERIENCES_MAX_DRAFTS", 50, &c.MaxDrafts}} {
+	}{{"EXPERIENCES_CREATE_DAILY", 20, &c.CreateDaily}, {"EXPERIENCES_PUBLISH_DAILY", 20, &c.PublishDaily}, {"EXPERIENCES_UPLOAD_DAILY", 30, &c.UploadDaily}, {"EXPERIENCES_MAX_DRAFTS", 50, &c.MaxDrafts}, {"HOME_SOON_HOURS", 48, &c.HomeSoonHours}, {"HOME_RADIUS_M", 25000, &c.HomeRadiusM}, {"HOME_SECTION_LIMIT", 6, &c.HomeLimit}} {
 		n := p.def
 		if v := get(p.k); v != "" {
 			var e error
@@ -27,7 +28,17 @@ func ParseConfig(get func(string) string, key []byte) (Config, error) {
 				return c, fmt.Errorf("%s inválido", p.k)
 			}
 		}
-		if n < 1 || n > 10000 {
+		max := 10000
+		min := 1
+		switch p.k {
+		case "HOME_SOON_HOURS":
+			max = 168
+		case "HOME_RADIUS_M":
+			min, max = 1000, 100000
+		case "HOME_SECTION_LIMIT":
+			max = 8
+		}
+		if n < min || n > max {
 			return c, fmt.Errorf("%s inválido", p.k)
 		}
 		*p.dst = n

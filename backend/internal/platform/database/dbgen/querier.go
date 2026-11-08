@@ -40,6 +40,10 @@ type Querier interface {
 	FindRefreshOwner(ctx context.Context, id pgtype.UUID) (FindRefreshOwnerRow, error)
 	GetExperience(ctx context.Context, id pgtype.UUID) ([]byte, error)
 	GetMediaUpload(ctx context.Context, id pgtype.UUID) (MediaUpload, error)
+	// NOT MATERIALIZED allows each bounded branch to use the existing agenda,
+	// category, GiST and partial recency indexes. One snapshot/round trip, no N+1.
+	HomeCandidates(ctx context.Context, arg HomeCandidatesParams) ([]HomeCandidatesRow, error)
+	HomeCategories(ctx context.Context) ([]HomeCategoriesRow, error)
 	IdentityAdvisoryLock(ctx context.Context, dollar_1 string) error
 	IdentityMe(ctx context.Context, id pgtype.UUID) (IdentityMeRow, error)
 	IncrementIdentityBucket(ctx context.Context, arg IncrementIdentityBucketParams) (int32, error)

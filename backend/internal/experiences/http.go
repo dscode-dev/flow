@@ -116,6 +116,7 @@ func writeExperience(w http.ResponseWriter, status int, out Experience) {
 func (h *Handler) Register(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(h.auth.Limited, h.auth.Protected)
+		r.Get("/v1/home", h.home)
 		r.Get("/v1/experience-categories", func(w http.ResponseWriter, r *http.Request) {
 			out, e := h.service.Categories(r.Context())
 			if e != nil {

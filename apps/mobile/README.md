@@ -1,5 +1,7 @@
 # Flow mobile
 
+PR-03: `/app` agora abre o Início com descoberta real, categorias contextuais, seleção manual de região aproximada e cards para os detalhes existentes. Gestão permanece em “Minhas experiências” (`/experiences`). Sem conteúdo público elegível, o vazio é esperado. [Critérios, privacidade, testes e limites](../../docs/features/home-discovery.md). `make mobile-local` na raiz atualiza a API antes de recompilar o app com o comando abaixo; não exige mudar a assinatura pessoal.
+
 Para acesso temporário local pelo fluxo de telefone, consulte [modo de desenvolvimento](../../docs/features/development-phone-login.md). O app espera o challenge e a confirmação do código pelo servidor; não aceita credenciais nem cria sessão localmente. `make mobile-local` gera a flag visual correta no arquivo público local, sem incluir número/código.
 
 PR-02.B: Minhas experiências, criação em etapas/revisão, rascunhos persistidos na API, edição, capas S3 verificadas, detalhes e lifecycle estão implementados. Rotas, contratos, concorrência, privacidade e configuração em [Experiences Flutter](../../docs/features/flutter-experiences.md). `../../flutterw test` inclui as suítes focadas; `make experiences-mobile-contract` na raiz verifica Flutter/Go/PostGIS/S3 reais em destinos isolados. Autenticação real e picker físico exigem homologação própria; não há conta mock no app.

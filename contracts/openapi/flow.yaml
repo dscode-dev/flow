@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Flow API
-  version: 1.1.0
+  version: 1.2.0
   description: 'Identity por PHONE, GOOGLE e APPLE; Experiences e capas S3 verificadas. Credenciais opacas Flow,
     sem senha. Provedores/storage sem configuração retornam 503; nenhuma homologação externa é presumida.'
 servers:
@@ -700,6 +700,82 @@ paths:
           $ref: '#/components/responses/Error'
         '429':
           $ref: '#/components/responses/RateLimited'
+        default:
+          $ref: '#/components/responses/Error'
+  /v1/home:
+    get:
+      operationId: getHome
+      summary: Composição limitada de descoberta pública
+      description: >-
+        Sessão ativa. PUBLIC/PUBLISHED/VISIBLE, ends_at > as_of, via visão Experiences.
+        Sem coordenadas, descoberta geral e nearby locality_required. Categoria habilitada
+        filtra apenas contextual. Sem afinidade/histórico/popularidade/editorial implícitos.
+        Seis seções fixas; falha de dependência retorna erro global, nunca sucesso parcial.
+        Sem cursor/total; até 1+5*limit cards, máximo 41, catálogo até 100 categorias e JSON até 2MiB. Até duas ocorrências por ID,
+        alocadas na ordem highlights/live/soon/nearby/contextual/recent; vazios podem
+        resultar da deduplicação. Ordenação informada por seção. Atualizar em refresh_at
+        (menor entre 60s e próxima fronteira temporal retornada), no retorno/resume e manualmente.
+        Não há snapshot persistente nem cache; alterações remotas aparecem na revalidação.
+        Query duplicada, vazia ou desconhecida é 400; parâmetros geográficos são transitórios.
+      security:
+      - bearerAuth: []
+      parameters:
+      - in: query
+        name: latitude
+        description: 'Centro aproximado de região selecionada; arredondado a duas casas no servidor. Exige longitude.'
+        schema:
+          type: number
+          minimum: -90
+          maximum: 90
+      - in: query
+        name: longitude
+        description: 'Exige latitude. Não é obtida do GPS.'
+        schema:
+          type: number
+          minimum: -180
+          maximum: 180
+      - in: query
+        name: radius_m
+        description: 'Raio; requer par latitude/longitude. Default HOME_RADIUS_M, 25000.'
+        schema:
+          type: integer
+          minimum: 1000
+          maximum: 100000
+      - in: query
+        name: limit
+        description: 'Teto por seção; default e máximo efetivo HOME_SECTION_LIMIT, 6; highlights até 1.'
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 8
+      - in: query
+        name: category_id
+        description: Categoria habilitada para descoberta contextual; não é preferência persistida.
+        schema:
+          type: string
+          maxLength: 40
+      responses:
+        '200':
+          description: Home; seções vazias são ocultadas pelo cliente, nearby pode solicitar localidade.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Home'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Error'
         default:
           $ref: '#/components/responses/Error'
   /v1/experiences:
@@ -1715,6 +1791,94 @@ components:
       description: 'Sem dados Identity privados. PRIVATE e drafts: somente autor. PUBLIC/UNLISTED publicados: acesso
         direto autenticado. Histórico não autor é redigido: details_redacted=true, description/venue_name/address vazios
         e location/capacity/ticket/cover nulos. phase é derivado só para PUBLISHED.'
+    Home:
+      type: object
+      additionalProperties: false
+      required: [as_of, refresh_at, soon_hours, default_radius_m, section_limit, locality, category_id, categories, sections]
+      properties:
+        as_of:
+          type: string
+          format: date-time
+        refresh_at:
+          type: string
+          format: date-time
+        default_radius_m:
+          type: integer
+          minimum: 1000
+          maximum: 100000
+        soon_hours:
+          type: integer
+          minimum: 1
+          maximum: 168
+        section_limit:
+          type: integer
+          minimum: 1
+          maximum: 8
+        locality:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [latitude, longitude, radius_m]
+          properties:
+            latitude:
+              type: number
+              minimum: -90
+              maximum: 90
+            longitude:
+              type: number
+              minimum: -180
+              maximum: 180
+            radius_m:
+              type: integer
+              minimum: 1000
+              maximum: 100000
+        category_id:
+          type: string
+          nullable: true
+        categories:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ExperienceCategory'
+        sections:
+          type: array
+          minItems: 6
+          maxItems: 6
+          items:
+            $ref: '#/components/schemas/HomeSection'
+    HomeSection:
+      type: object
+      additionalProperties: false
+      required: [id, order, availability, items]
+      properties:
+        id:
+          type: string
+          enum: [highlights, live, soon, nearby, contextual, recent]
+        order:
+          type: string
+          enum: [starts_at_asc_id_asc, starts_at_desc_id_desc, distance_asc_starts_at_asc_id_asc, starts_at_asc_created_at_desc_id_asc, created_at_desc_id_desc]
+        availability:
+          type: string
+          enum: [available, empty, locality_required]
+        items:
+          type: array
+          maxItems: 8
+          items:
+            $ref: '#/components/schemas/HomeItem'
+    HomeItem:
+      type: object
+      additionalProperties: false
+      required: [experience, category_name, distance_m]
+      properties:
+        experience:
+          $ref: '#/components/schemas/Experience'
+        category_name:
+          type: string
+        distance_m:
+          type: integer
+          nullable: true
+          minimum: 0
+          description: Distância geodésica ao centro aproximado, arredondada a 100m; apenas nearby.
     ExperiencePage:
       type: object
       additionalProperties: false

@@ -76,7 +76,7 @@ func TestMain(m *testing.M) {
 	if _, e = db.Exec("INSERT INTO identity.users(id) VALUES($1)", marker); e != nil {
 		panic(e)
 	}
-	if e = goose.Down(db, "../../../migrations"); e != nil {
+	if e = goose.DownTo(db, "../../../migrations", 2); e != nil {
 		panic(e)
 	}
 	var ok bool

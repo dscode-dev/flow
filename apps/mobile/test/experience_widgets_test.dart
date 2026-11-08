@@ -104,6 +104,8 @@ void main() {
     await rig.login(completed: true);
     final api = FakeExperiencesRepository();
     final container = await mountExperiences(tester, rig, api);
+    container.read(routerProvider).go('/experiences');
+    await tester.pumpAndSettle();
     expect(find.text('Uma ideia pode virar um encontro.'), findsOneWidget);
     await tester.tap(find.text('Criar experiência'));
     await tester.pumpAndSettle();

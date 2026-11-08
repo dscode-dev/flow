@@ -1,6 +1,8 @@
-# Flow V1 — Identity e Experiences
+# Flow V1 — Identity, Experiences e Home
 
 Flow é uma implementação nova, por decisão de produto no [ADR 0005](docs/decisions/0005-fresh-flow.md), sem migração ou dependência do Rolezin. PR-00 entrega fundação Go/Flutter; PR-01.A entrega Identity por PHONE/GOOGLE/APPLE; PR-01.B implementa autenticação Flutter, onboarding e sessão segura, com configuração/homologação externas pendentes. Ver [Identity](docs/features/identity.md), [contratos mobile](docs/features/identity-mobile-integration.md), [configuração/roteiro físico](docs/features/mobile-authentication.md) e [relatório PR-01.A](docs/architecture/pr-01a-completion-report.md).
+
+PR-03 entrega [Início / Home Discovery](docs/features/home-discovery.md): composição Go/PostGIS real, seis seções limitadas, região aproximada manual sem GPS, cards Flutter e detalhes existentes. Configuração HOME_SOON_HOURS/HOME_RADIUS_M/HOME_SECTION_LIMIT documentada; sem conteúdo fictício, recomendação social ou mapa simulado. `make experiences-mobile-contract` cobre agora também a Home no bridge Flutter/Go/PostGIS/S3. [Relatório do ciclo](docs/architecture/pr-03-completion-report.md).
 
 ## Requisitos
 
@@ -29,7 +31,7 @@ make migrate-down
 make migrate-up
 ```
 
-Probes: liveness200 sem dependências; readiness200 quando PostgreSQL/Redis/RabbitMQ estão disponíveis, 503 durante falha/encerramento. Endpoints reais no OpenAPI; nenhum CRUD Users/admin. `make smoke` é **somente para ambiente de teste vazio**: down/up das três migrations (Experiences/Media, Identity e fundação), com guardas para contas/experiências/mídia/integração existentes; interrompe e restaura Redis. Nunca executar em produção ou com dados a preservar. Rollback não remove PostGIS. S3 indisponível retorna503 nas operações de mídia, sem bloquear experiências sem capa.
+Probes: liveness200 sem dependências; readiness200 quando PostgreSQL/Redis/RabbitMQ estão disponíveis, 503 durante falha/encerramento. Endpoints reais no OpenAPI; nenhum CRUD Users/admin. `make smoke` é **somente para ambiente de teste vazio**: down/up das quatro migrations (índice Home, Experiences/Media, Identity e fundação), com guardas para contas/experiências/mídia/integração existentes; interrompe e restaura Redis. Nunca executar em produção ou com dados a preservar. Rollback não remove PostGIS. S3 indisponível retorna503 nas operações de mídia, sem bloquear experiências sem capa.
 
 Observabilidade opcional: configure `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318` em `.env` e execute:
 

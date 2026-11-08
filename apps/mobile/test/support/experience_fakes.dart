@@ -31,6 +31,28 @@ Experience sampleExperience({
 );
 
 class FakeExperiencesRepository implements ExperiencesRepository {
+  @override
+  Future<Map<String, dynamic>> homeDocument(
+    Map<String, dynamic> query, {
+    CancelToken? cancel,
+  }) async {
+    check();
+    return {
+      'as_of': DateTime.now().toUtc().toIso8601String(),
+      'refresh_at': DateTime.now()
+          .toUtc()
+          .add(const Duration(minutes: 1))
+          .toIso8601String(),
+      'soon_hours': 48,
+      'default_radius_m': 25000,
+      'section_limit': 6,
+      'locality': null,
+      'category_id': null,
+      'categories': <dynamic>[],
+      'sections': <dynamic>[],
+    };
+  }
+
   List<Experience> items = [];
   Experience current = sampleExperience();
   AuthIssue? failure;

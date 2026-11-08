@@ -13,6 +13,8 @@ import 'package:flow_mobile/features/experiences/data/experiences_repository.dar
 import 'package:flow_mobile/features/experiences/domain/experience.dart';
 import 'package:flow_mobile/features/experiences/domain/experience_issue.dart';
 import 'package:flow_mobile/features/experiences/domain/experience_time.dart';
+import 'package:flow_mobile/features/home/home_controller.dart';
+import 'package:flow_mobile/features/home/home_model.dart';
 
 import 'support/auth_fakes.dart' show MemoryStore, FakeSocial;
 
@@ -161,6 +163,46 @@ void main() {
       expect(published.status, ExperienceStatus.published);
       expect((await outsider.get(draft.id)).detailsRedacted, false);
       expect((await outsider.cover(draft.id)), isNotEmpty);
+      final home = HomeController(repo, access);
+      addTearDown(home.dispose);
+      await home.load();
+      expect(home.value.issue, isNull);
+      expect(
+        home.value.document!.sections
+            .expand((s) => s.items)
+            .any((e) => e.experience.id == draft.id),
+        true,
+      );
+      expect(
+        home.value.document!.sections
+            .firstWhere((s) => s.id == 'nearby')
+            .availability,
+        'locality_required',
+      );
+      await home.selectRegion(
+        DiscoveryRegion.parse('Região de integração', '-8.12', '-34.99', '10'),
+      );
+      expect(
+        home.value.document!.sections
+            .firstWhere((s) => s.id == 'nearby')
+            .items
+            .single
+            .experience
+            .id,
+        draft.id,
+      );
+      await home.selectRegion(
+        DiscoveryRegion.parse(
+          'Outra região de integração',
+          '-23.55',
+          '-46.63',
+          '10',
+        ),
+      );
+      expect(
+        home.value.document!.sections.firstWhere((s) => s.id == 'nearby').items,
+        isEmpty,
+      );
       final corrected = ExperienceInput.fromJson({
         ...published.input.toJson(),
         'title': 'Correção permitida',
@@ -173,6 +215,13 @@ void main() {
       expect(redacted.input.location, isNull);
       expect(redacted.input.coverMediaId, isNull);
       expect(redacted.input.externalTicketUrl, isNull);
+      await home.load();
+      expect(
+        home.value.document!.sections
+            .expand((s) => s.items)
+            .any((e) => e.experience.id == draft.id),
+        false,
+      );
       await expectLater(
         outsider.cover(draft.id),
         throwsA(isA<ExperienceIssue>().having((e) => e.status, 'status', 404)),
@@ -204,12 +253,15 @@ void main() {
         const Uuid().v4(),
       );
       await repo.transition(private, 'publish');
+      await home.selectRegion(null);
+      expect(home.value.document!.isEmpty, true);
+      home.pause();
       await expectLater(
         outsider.get(private.id),
         throwsA(isA<ExperienceIssue>().having((e) => e.status, 'status', 404)),
       );
       await http.post<void>('__fixture/revoke');
-      await expectLater(repo.mine(), throwsA(isA<AuthIssue>()));
+      await expectLater(repo.homeDocument({}), throwsA(isA<AuthIssue>()));
       expect(auth.value.status, AuthStatus.sessionExpired);
       expect(access.ownerId, isNull);
       expect(store.data, isNull);

@@ -7,6 +7,7 @@ import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/experiences/presentation/pages/my_experiences_page.dart';
 import '../../features/experiences/presentation/pages/experience_detail_page.dart';
 import '../../features/experiences/presentation/pages/experience_editor_page.dart';
+import '../../features/home/home_page.dart';
 
 bool isExperiencePath(String path) =>
     path == '/app' ||
@@ -71,7 +72,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/otp', builder: (_, _) => const OtpScreen()),
       GoRoute(path: '/session', builder: (_, _) => const SessionGateScreen()),
       GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
-      GoRoute(path: '/app', builder: (_, _) => const MyExperiencesPage()),
+      GoRoute(path: '/app', builder: (_, _) => const HomePage()),
       GoRoute(
         path: '/experiences',
         builder: (_, _) => const MyExperiencesPage(),

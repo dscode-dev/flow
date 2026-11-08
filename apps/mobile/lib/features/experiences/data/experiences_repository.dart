@@ -99,6 +99,10 @@ class VerifiedCover {
 }
 
 abstract interface class ExperiencesRepository {
+  Future<Map<String, dynamic>> homeDocument(
+    Map<String, dynamic> query, {
+    CancelToken? cancel,
+  });
   Future<List<ExperienceCategory>> categories({CancelToken? cancel});
   Future<ExperiencePage> mine({
     String? cursor,
@@ -250,6 +254,13 @@ class DioExperiencesRepository implements ExperiencesRepository {
     }
   }
 
+  @override
+  Future<Map<String, dynamic>> homeDocument(
+    Map<String, dynamic> query, {
+    CancelToken? cancel,
+  }) async =>
+      (await _call('GET', 'v1/home', query: query, cancel: cancel)).data
+          as Map<String, dynamic>;
   @override
   Future<List<ExperienceCategory>> categories({CancelToken? cancel}) async =>
       (((await _call('GET', 'v1/experience-categories', cancel: cancel)).data
