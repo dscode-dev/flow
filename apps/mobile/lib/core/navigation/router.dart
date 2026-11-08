@@ -9,14 +9,20 @@ import '../../features/experiences/presentation/pages/experience_detail_page.dar
 import '../../features/experiences/presentation/pages/experience_editor_page.dart';
 import '../../features/home/home_page.dart';
 import '../../features/radar/radar_page.dart';
+import '../../features/explore/explore_page.dart';
+import '../../features/explore/flows_viewer_page.dart';
+import '../../features/explore/flow_management_page.dart';
 
 bool isExperiencePath(String path) =>
     path == '/app' ||
     path == '/radar' ||
+    path == '/explore' ||
+    path == '/flows' ||
+    RegExp(r'^/flows/[0-9a-fA-F-]{36}$').hasMatch(path) ||
     path == '/experiences' ||
     path == '/experiences/new' ||
     RegExp(
-      r'^/experiences/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(/edit)?$',
+      r'^/experiences/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(/edit|/flow)?$',
     ).hasMatch(path);
 
 // Only an explicit local route is retained. Never accept returnTo/absolute URLs.
@@ -76,6 +82,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
       GoRoute(path: '/app', builder: (_, _) => const HomePage()),
       GoRoute(path: '/radar', builder: (_, _) => const RadarPage()),
+      GoRoute(path: '/explore', builder: (_, _) => const ExplorePage()),
+      GoRoute(path: '/flows', builder: (_, _) => const FlowsViewerPage()),
+      GoRoute(
+        path: '/flows/:id',
+        builder: (_, state) =>
+            FlowsViewerPage(initialId: state.pathParameters['id']),
+      ),
+      GoRoute(
+        path: '/experiences/:id/flow',
+        builder: (_, state) => FlowManagementPage(state.pathParameters['id']!),
+      ),
       GoRoute(
         path: '/experiences',
         builder: (_, _) => const MyExperiencesPage(),

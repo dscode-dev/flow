@@ -1,14 +1,18 @@
-# Flow V1 — Identity, Experiences, Home e Radar
+# Flow V1 — Identity, Experiences, Home, Radar e Explorar
+
+PR-05 entrega [Explorar](docs/features/explore.md) e [Flows](docs/features/flows.md): busca PostgreSQL indexada, carrossel e viewer vertical, apresentação subordinada à Experience, imagens/vídeo≤15s e processamento assíncrono no worker Go/FFmpeg. UNLISTED exige consentimento público explícito; PRIVATE nunca aparece. Sem P2P, feed pessoal ou métricas fictícias. [ADR0010](docs/decisions/0010-explore-flows-exposure-media.md) e [relatório](docs/architecture/pr-05-completion-report.md).
 
 Flow é uma implementação nova, por decisão de produto no [ADR 0005](docs/decisions/0005-fresh-flow.md), sem migração ou dependência do Rolezin. PR-00 entrega fundação Go/Flutter; PR-01.A entrega Identity por PHONE/GOOGLE/APPLE; PR-01.B implementa autenticação Flutter, onboarding e sessão segura, com configuração/homologação externas pendentes. Ver [Identity](docs/features/identity.md), [contratos mobile](docs/features/identity-mobile-integration.md), [configuração/roteiro físico](docs/features/mobile-authentication.md) e [relatório PR-01.A](docs/architecture/pr-01a-completion-report.md).
 
 PR-03 entrega [Início / Home Discovery](docs/features/home-discovery.md): composição Go/PostGIS real, seis seções limitadas, região aproximada manual sem GPS, cards Flutter e detalhes existentes. Configuração HOME_SOON_HOURS/HOME_RADIUS_M/HOME_SECTION_LIMIT documentada; sem conteúdo fictício, recomendação social ou mapa simulado. `make experiences-mobile-contract` cobre agora também a Home no bridge Flutter/Go/PostGIS/S3. [Relatório do ciclo](docs/architecture/pr-03-completion-report.md).
 
-PR-04 implementa [Radar](docs/features/radar.md): viewport PostGIS/antimeridiano, marcadores limitados, filtros e integração oficial Mapbox3.34.2. O proprietário ainda não possui token: o app mostra configuração indisponível; renderização real/homologação seguem como gates externos. Configuração pública local, privacidade e roteiro físico no guia. O bridge existente também testa o Radar contra a API real, sem confundir isso com runtime de tiles/clusters. [Relatório PR-04](docs/architecture/pr-04-completion-report.md).
+PR-04 implementa [Radar](docs/features/radar.md): viewport PostGIS/antimeridiano, marcadores limitados, filtros e integração oficial Mapbox3.34.2. O proprietário informou que gerou token; a configuração é local e renderização real/homologação seguem pendentes de evidência. Sem token configurado, o app mostra configuração indisponível. Configuração pública local, privacidade e roteiro físico no guia. O bridge existente também testa o Radar contra a API real, sem confundir isso com runtime de tiles/clusters. [Relatório PR-04](docs/architecture/pr-04-completion-report.md).
 
 ## Requisitos
 
 Go 1.27.3, Flutter 3.47.8 (Dart 3.13.7), Docker Engine/Compose v2, Python 3 e curl. SDKs Android/iOS e assinatura para executar em aparelhos. Não é necessário instalar PostgreSQL, Redis, RabbitMQ, goose ou sqlc globalmente.
+
+Os testes de integração de mídia executados no host também exigem `ffmpeg` e `ffprobe` no PATH. A imagem Docker da API/worker já inclui essas ferramentas.
 
 Flutter está fixado em `.flutter-version`. Use `./flutterw` na raiz (ou `../../flutterw` dentro de `apps/mobile`): o SDK oficial fica em `.toolchains/`, ignorado pelo Git, com instalação inicial via Git/rede. O diretório é persistente e independente do Flutter global/PATH; não usar instalações em `/private/tmp` nos comandos habituais. `make mobile-check` usa esse wrapper por padrão; `FLUTTER=...` continua permitindo outra instalação, como o SDK já preparado pela CI.
 
@@ -33,7 +37,7 @@ make migrate-down
 make migrate-up
 ```
 
-Probes: liveness200 sem dependências; readiness200 quando PostgreSQL/Redis/RabbitMQ estão disponíveis, 503 durante falha/encerramento. Endpoints reais no OpenAPI; nenhum CRUD Users/admin. `make smoke` é **somente para ambiente de teste vazio**: down/up das cinco migrations (índice Radar, índice Home, Experiences/Media, Identity e fundação), com guardas para contas/experiências/mídia/integração existentes; interrompe e restaura Redis. Nunca executar em produção ou com dados a preservar. Rollback não remove PostGIS. S3 indisponível retorna503 nas operações de mídia, sem bloquear experiências sem capa.
+Probes: liveness200 sem dependências; readiness200 quando PostgreSQL/Redis/RabbitMQ estão disponíveis, 503 durante falha/encerramento. Endpoints reais no OpenAPI; nenhum CRUD Users/admin. `make smoke` é **somente para ambiente de teste vazio**: down/up das seis migrations (índice Radar, índice Home, Experiences/Media, Identity e fundação), com guardas para contas/experiências/mídia/integração existentes; interrompe e restaura Redis. Nunca executar em produção ou com dados a preservar. Rollback não remove PostGIS. S3 indisponível retorna503 nas operações de mídia, sem bloquear experiências sem capa.
 
 Observabilidade opcional: configure `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318` em `.env` e execute:
 

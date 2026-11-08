@@ -120,6 +120,7 @@ func writeExperience(w http.ResponseWriter, status int, out Experience) {
 	respond(w, status, out)
 }
 func (h *Handler) Register(r chi.Router) {
+	h.registerFlows(r)
 	r.Group(func(r chi.Router) {
 		r.Use(h.auth.Limited, h.auth.Protected)
 		r.Get("/v1/home", h.home)

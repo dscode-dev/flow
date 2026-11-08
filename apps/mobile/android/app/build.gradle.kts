@@ -1,8 +1,23 @@
+import java.util.Base64
+import java.net.URI
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Native progressive playback must reach the private development API as Dio does.
+// Production keeps cleartext disabled. Never log decoded dart-defines.
+val flowDefines = (project.findProperty("dart-defines") as? String).orEmpty()
+    .split(",").filter { it.isNotEmpty() }.mapNotNull {
+        runCatching { String(Base64.getDecoder().decode(it)).split("=", limit = 2) }
+            .getOrNull()?.takeIf { parts -> parts.size == 2 }
+    }.associate { it[0] to it[1] }
+val flowApiUri = runCatching { URI(flowDefines["API_BASE_URL"].orEmpty()) }.getOrNull()
+val flowLocalHost = flowApiUri?.host.orEmpty().matches(
+    Regex("^(localhost|127\\..*|10\\..*|192\\.168\\..*|172\\.(1[6-9]|2[0-9]|3[01])\\..*)$")
+)
 
 android {
     namespace = "com.example.flow_mobile"
@@ -15,6 +30,9 @@ android {
     }
 
     defaultConfig {
+        manifestPlaceholders["flowCleartextTraffic"] = (
+            flowDefines["FLOW_ENV"] != "production" && flowApiUri?.scheme == "http" && flowLocalHost
+        ).toString()
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.flow_mobile"
         // You can update the following values to match your application needs.

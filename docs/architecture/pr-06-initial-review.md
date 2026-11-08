@@ -1,0 +1,9 @@
+# PR-06 — inspeção inicial
+
+08/11/2026. Branch `main`, HEAD `1b7c5f7f262a0bc89c13e76e136a9d9d222f09e2`; índice vazio, 59 arquivos modificados/novos do PR-05 preservados na árvore. Snapshot de hashes e OpenAPI anterior guardados somente em `/private/tmp/flow-pr06-*`, sem configurações privadas. Nenhum commit/push/merge/deploy autorizado.
+
+Lidos relatório PR-05, Experiences/visibilidade/lifecycle, migrations/queries/sqlc, Identity/sessões, outbox/auditoria, OpenAPI/eventos, detalhes/navegação/repository Flutter, design system e registro administrativo. Experiences já possui capacidade, agenda UTC/IANA e ingresso externo; não há Participation anterior. PUBLIC/UNLISTED têm detalhes autenticados; PRIVATE era exclusivo do criador. A extensão concederá acesso privado somente a convite pendente válido ou confirmação vigente, reavaliado pelo backend.
+
+Decisões: subdomínio Participation no mesmo processo Go/banco, referenciando Experience; interesse independente de status/assento; organizador não ocupa vaga nem confirma para si; lista nominal exclusiva do organizador. Modalidades FREE/APPROVAL/INVITE. Confirmação e alterações de capacidade serializadas na linha Experience, com proteção adicional por triggers PostgreSQL. Convites por UUID interno fornecido ou handle exato, sem pesquisa/importação de contatos. Check-in: participante confirmado solicita código aleatório temporário; organizador autenticado digita e valida no local. Código de uso único, armazenado somente como HMAC, sem câmera/GPS ou concessão de participação. Replay, expiração, revogação e janela são autoritativos.
+
+Reutilizar RequireCreator para sessão/conta/onboarding, pgx/sqlc, transações e outbox; Dio/autorização/cancelamento e componentes Flow existentes. Nenhum Social, Chat, Event Space ou push neste ciclo. Configuração local, token Mapbox, assinatura pessoal, conta temporária e volumes serão preservados. Testes transacionais somente no banco isolado `flow_experiences_test`.

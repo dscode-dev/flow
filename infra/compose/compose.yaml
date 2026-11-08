@@ -111,6 +111,9 @@ services:
       HOME_SOON_HOURS: ${HOME_SOON_HOURS:-48}
       HOME_RADIUS_M: ${HOME_RADIUS_M:-25000}
       HOME_SECTION_LIMIT: ${HOME_SECTION_LIMIT:-6}
+      FLOWS_WINDOW_HOURS: ${FLOWS_WINDOW_HOURS:-48}
+      FLOW_MEDIA_MAX_BYTES: ${FLOW_MEDIA_MAX_BYTES:-33554432}
+      FLOW_MEDIA_MAX_DIMENSION: ${FLOW_MEDIA_MAX_DIMENSION:-1920}
       RADAR_RESULT_LIMIT: ${RADAR_RESULT_LIMIT:-100}
       RADAR_MIN_ZOOM: ${RADAR_MIN_ZOOM:-4}
       RADAR_MAX_SPAN_DEGREES: ${RADAR_MAX_SPAN_DEGREES:-30}
@@ -137,6 +140,35 @@ services:
     tmpfs: [/tmp]
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
+    networks: [flow]
+  flow-media-worker:
+    build:
+      context: ../..
+      dockerfile: infra/docker/api.Dockerfile
+    command: [/app/flow-media-worker]
+    environment:
+      FLOW_ENV: ${FLOW_ENV:-development}
+      DATABASE_URL: postgres://${POSTGRES_USER:-flow}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-flow}?sslmode=disable
+      FLOW_MEDIA_MAX_BYTES: ${FLOW_MEDIA_MAX_BYTES:-33554432}
+      FLOW_MEDIA_MAX_DIMENSION: ${FLOW_MEDIA_MAX_DIMENSION:-1920}
+      MEDIA_S3_ENDPOINT: ${MEDIA_S3_ENDPOINT:-http://storage:8333}
+      MEDIA_S3_REGION: ${MEDIA_S3_REGION:-us-east-1}
+      MEDIA_S3_BUCKET: ${MEDIA_S3_BUCKET:-flow-covers}
+      MEDIA_S3_ACCESS_KEY: ${MEDIA_S3_ACCESS_KEY:?Execute make env}
+      MEDIA_S3_SECRET_KEY: ${MEDIA_S3_SECRET_KEY:?Execute make env}
+      MEDIA_S3_SESSION_TOKEN: ${MEDIA_S3_SESSION_TOKEN:-}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      storage: {condition: service_healthy}
+    cpus: '1.0'
+    mem_limit: 512m
+    pids_limit: 64
+    read_only: true
+    tmpfs: ['/tmp:size=134217728,mode=1777']
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 15s
+    restart: unless-stopped
     networks: [flow]
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.136.0

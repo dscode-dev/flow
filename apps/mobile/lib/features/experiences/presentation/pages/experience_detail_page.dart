@@ -205,6 +205,19 @@ class _ExperienceDetailPageState extends ConsumerState<ExperienceDetailPage>
                                     ? null
                                     : () async {
                                         await context.push(
+                                          '/experiences/${e.id}/flow',
+                                        );
+                                        if (mounted) _controller.load();
+                                      },
+                                icon: const Icon(Icons.slideshow_outlined),
+                                label: const Text('Apresentação nos Flows'),
+                              ),
+                            if (e.editable)
+                              OutlinedButton.icon(
+                                onPressed: state.busy
+                                    ? null
+                                    : () async {
+                                        await context.push(
                                           '/experiences/${e.id}/edit',
                                         );
                                         if (mounted) _controller.load();

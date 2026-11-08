@@ -16,7 +16,7 @@ enum ExperienceVisibility {
   unlisted(
     'UNLISTED',
     'Por link',
-    'Qualquer conta com o link poderá ver o local após a publicação.',
+    'Por padrão, qualquer conta com o link poderá ver o local após publicar. Você pode permitir descoberta pública nos Flows separadamente.',
   ),
   public(
     'PUBLIC',

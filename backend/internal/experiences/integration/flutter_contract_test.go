@@ -26,6 +26,22 @@ func TestFlutterExperiencesContract(t *testing.T) {
 		t.Skip("use make experiences-mobile-contract")
 	}
 	h := newHarness(t)
+	workerCtx, stopWorker := context.WithCancel(t.Context())
+	workerDone := make(chan struct{})
+	defer func() { stopWorker(); <-workerDone }()
+	go func() {
+		defer close(workerDone)
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-workerCtx.Done():
+				return
+			case <-ticker.C:
+				_, _ = h.media.ProcessFlowNext(workerCtx)
+			}
+		}
+	}()
 	owner, other := user(t, true), user(t, true)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/__fixture/session" && r.Method == "GET" {

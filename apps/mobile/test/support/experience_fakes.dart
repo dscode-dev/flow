@@ -32,6 +32,25 @@ Experience sampleExperience({
 
 class FakeExperiencesRepository implements ExperiencesRepository {
   @override
+  Future<Map<String, dynamic>> discoveryRequest(
+    String method,
+    String path, {
+    Object? body,
+    Map<String, dynamic>? query,
+    Map<String, dynamic>? headers,
+    CancelToken? cancel,
+  }) async {
+    check();
+    return {
+      'items': <dynamic>[],
+      'next_cursor': null,
+      'as_of': '2026-11-08T12:00:00Z',
+      'valid_until': '2026-11-08T12:01:00Z',
+      'window_hours': 48,
+    };
+  }
+
+  @override
   Future<Map<String, dynamic>> radarDocument(
     Map<String, dynamic> query, {
     CancelToken? cancel,

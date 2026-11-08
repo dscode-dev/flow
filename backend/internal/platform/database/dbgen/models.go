@@ -79,6 +79,50 @@ type ExperiencesExperience struct {
 	CancelledAt       pgtype.Timestamptz
 	ArchivedAt        pgtype.Timestamptz
 	Version           int64
+	SearchVector      interface{}
+}
+
+type ExperiencesFlowAudit struct {
+	ID           pgtype.UUID
+	ExperienceID pgtype.UUID
+	ActorUserID  pgtype.UUID
+	Action       string
+	Version      int64
+	RequestID    string
+	Details      []byte
+	CreatedAt    pgtype.Timestamptz
+}
+
+type ExperiencesFlowDiscovery struct {
+	ID                  pgtype.UUID
+	CreatorUserID       pgtype.UUID
+	CreatedAt           pgtype.Timestamptz
+	StartsAt            pgtype.Timestamptz
+	EndsAt              pgtype.Timestamptz
+	Status              string
+	Visibility          string
+	ModerationStatus    string
+	CategoryID          pgtype.Text
+	Point               interface{}
+	Document            interface{}
+	PresentationVersion int64
+	ImageAssetID        pgtype.UUID
+	VideoAssetID        pgtype.UUID
+	ImageKind           string
+	DurationMs          pgtype.Int4
+	MediaWidth          pgtype.Int4
+	MediaHeight         pgtype.Int4
+}
+
+type ExperiencesFlowPresentation struct {
+	ExperienceID         pgtype.UUID
+	Enabled              bool
+	UnlistedConsentAt    pgtype.Timestamptz
+	UnlistedConsentActor pgtype.UUID
+	ImageAssetID         pgtype.UUID
+	VideoAssetID         pgtype.UUID
+	Version              int64
+	UpdatedAt            pgtype.Timestamptz
 }
 
 type ExperiencesIdempotency struct {
@@ -245,6 +289,35 @@ type MediaBinding struct {
 	MediaID      pgtype.UUID
 	OwnerUserID  pgtype.UUID
 	BoundAt      pgtype.Timestamptz
+}
+
+type MediaFlowAsset struct {
+	ID               pgtype.UUID
+	ExperienceID     pgtype.UUID
+	OwnerUserID      pgtype.UUID
+	IdempotencyKey   pgtype.UUID
+	RequestHash      []byte
+	ContentType      string
+	SizeBytes        int64
+	Status           string
+	StagingKey       string
+	ObjectKey        string
+	PosterKey        string
+	Width            pgtype.Int4
+	Height           pgtype.Int4
+	DurationMs       pgtype.Int4
+	VerifiedSize     pgtype.Int8
+	Sha256           pgtype.Text
+	FailureCode      pgtype.Text
+	ExpiresAt        pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+	ConfirmedAt      pgtype.Timestamptz
+	LeaseUntil       pgtype.Timestamptz
+	LeaseID          pgtype.UUID
+	Attempts         int32
+	ProcessedAt      pgtype.Timestamptz
+	StagingCleanedAt pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
 }
 
 type MediaRateLimit struct {

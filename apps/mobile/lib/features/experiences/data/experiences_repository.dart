@@ -99,6 +99,14 @@ class VerifiedCover {
 }
 
 abstract interface class ExperiencesRepository {
+  Future<Map<String, dynamic>> discoveryRequest(
+    String method,
+    String path, {
+    Object? body,
+    Map<String, dynamic>? query,
+    Map<String, dynamic>? headers,
+    CancelToken? cancel,
+  });
   Future<Map<String, dynamic>> radarDocument(
     Map<String, dynamic> query, {
     CancelToken? cancel,
@@ -231,6 +239,25 @@ class DioExperiencesRepository implements ExperiencesRepository {
       _pending.remove(token);
     }
   }
+
+  @override
+  Future<Map<String, dynamic>> discoveryRequest(
+    String method,
+    String path, {
+    Object? body,
+    Map<String, dynamic>? query,
+    Map<String, dynamic>? headers,
+    CancelToken? cancel,
+  }) async =>
+      (await _call(
+            method,
+            path,
+            body: body,
+            query: query,
+            headers: headers,
+            cancel: cancel,
+          )).data
+          as Map<String, dynamic>;
 
   Future<Experience> _experience(
     String method,

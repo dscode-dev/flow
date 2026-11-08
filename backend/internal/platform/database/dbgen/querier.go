@@ -14,9 +14,11 @@ type Querier interface {
 	ActiveUserSessionIDs(ctx context.Context, userID pgtype.UUID) ([]string, error)
 	AppendOutbox(ctx context.Context, arg AppendOutboxParams) error
 	AttemptIdentityChallenge(ctx context.Context, arg AttemptIdentityChallengeParams) error
+	ClaimFlowAsset(ctx context.Context, leaseID pgtype.UUID) (MediaFlowAsset, error)
 	CleanupExperienceAudit(ctx context.Context) error
 	CleanupExperienceRates(ctx context.Context) error
 	CleanupExperienceTechnical(ctx context.Context) error
+	CleanupFlowAudit(ctx context.Context) error
 	CleanupMediaAudit(ctx context.Context) error
 	CleanupMediaRates(ctx context.Context) error
 	CleanupMediaTombstones(ctx context.Context) error
@@ -27,6 +29,8 @@ type Querier interface {
 	CreateIdentityProfile(ctx context.Context, userID pgtype.UUID) error
 	CreateIdentityUser(ctx context.Context, id pgtype.UUID) error
 	DeleteExpiredExperienceKey(ctx context.Context, arg DeleteExpiredExperienceKeyParams) error
+	DeleteFlowAsset(ctx context.Context, id pgtype.UUID) error
+	DeleteFlowTombstones(ctx context.Context) error
 	DeleteMediaUpload(ctx context.Context, id pgtype.UUID) error
 	DiscoverExperiences(ctx context.Context, arg DiscoverExperiencesParams) ([][]byte, error)
 	EnabledExperienceCategory(ctx context.Context, id string) (string, error)
@@ -34,11 +38,21 @@ type Querier interface {
 	ExperienceIdempotency(ctx context.Context, arg ExperienceIdempotencyParams) (ExperienceIdempotencyRow, error)
 	ExperiencePublishingRestricted(ctx context.Context, creatorUserID pgtype.UUID) (bool, error)
 	ExperienceRate(ctx context.Context, arg ExperienceRateParams) (int32, error)
+	ExploreExperiences(ctx context.Context, arg ExploreExperiencesParams) ([][]byte, error)
+	FailFlowAsset(ctx context.Context, arg FailFlowAssetParams) error
 	FindAccessSession(ctx context.Context, credentialHash []byte) (FindAccessSessionRow, error)
+	FindFlowAssetKey(ctx context.Context, arg FindFlowAssetKeyParams) (MediaFlowAsset, error)
 	FindMediaUploadKey(ctx context.Context, arg FindMediaUploadKeyParams) (MediaUpload, error)
 	FindProviderIdentity(ctx context.Context, arg FindProviderIdentityParams) (FindProviderIdentityRow, error)
 	FindRefreshOwner(ctx context.Context, id pgtype.UUID) (FindRefreshOwnerRow, error)
+	FlowAssetCleanupCandidates(ctx context.Context) ([]MediaFlowAsset, error)
+	FlowAssetIsBound(ctx context.Context, imageAssetID pgtype.UUID) (bool, error)
+	FlowAssetStagingCleaned(ctx context.Context, id pgtype.UUID) error
+	FlowMediaSessionActive(ctx context.Context, arg FlowMediaSessionActiveParams) (bool, error)
+	GetEligibleFlow(ctx context.Context, arg GetEligibleFlowParams) (GetEligibleFlowRow, error)
 	GetExperience(ctx context.Context, id pgtype.UUID) ([]byte, error)
+	GetFlowAsset(ctx context.Context, id pgtype.UUID) (MediaFlowAsset, error)
+	GetFlowPresentation(ctx context.Context, experienceID pgtype.UUID) (ExperiencesFlowPresentation, error)
 	GetMediaUpload(ctx context.Context, id pgtype.UUID) (MediaUpload, error)
 	// NOT MATERIALIZED allows each bounded branch to use the existing agenda,
 	// category, GiST and partial recency indexes. One snapshot/round trip, no N+1.
@@ -51,6 +65,8 @@ type Querier interface {
 	InsertExperience(ctx context.Context, arg InsertExperienceParams) error
 	InsertExperienceAudit(ctx context.Context, arg InsertExperienceAuditParams) error
 	InsertExperienceIdempotency(ctx context.Context, arg InsertExperienceIdempotencyParams) error
+	InsertFlowAsset(ctx context.Context, arg InsertFlowAssetParams) error
+	InsertFlowAudit(ctx context.Context, arg InsertFlowAuditParams) error
 	InsertIdentityAudit(ctx context.Context, arg InsertIdentityAuditParams) error
 	InsertIdentityChallenge(ctx context.Context, arg InsertIdentityChallengeParams) error
 	InsertIdentityDevice(ctx context.Context, arg InsertIdentityDeviceParams) error
@@ -62,10 +78,12 @@ type Querier interface {
 	IsReservedHandle(ctx context.Context, handle string) (bool, error)
 	LastPhoneChallengeAt(ctx context.Context, subjectRef pgtype.Text) (pgtype.Timestamptz, error)
 	ListExperienceCategories(ctx context.Context) ([]ListExperienceCategoriesRow, error)
+	ListFlows(ctx context.Context, arg ListFlowsParams) ([]ListFlowsRow, error)
 	ListIdentitySessions(ctx context.Context, userID pgtype.UUID) ([]ListIdentitySessionsRow, error)
 	ListOwnExperiences(ctx context.Context, arg ListOwnExperiencesParams) ([][]byte, error)
 	ListUserIdentities(ctx context.Context, userID pgtype.UUID) ([]ListUserIdentitiesRow, error)
 	LockExperience(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error)
+	LockFlowAsset(ctx context.Context, id pgtype.UUID) (MediaFlowAsset, error)
 	LockIdentityChallenge(ctx context.Context, id pgtype.UUID) (LockIdentityChallengeRow, error)
 	LockIdentitySession(ctx context.Context, id pgtype.UUID) (LockIdentitySessionRow, error)
 	LockIdentityUser(ctx context.Context, id pgtype.UUID) (LockIdentityUserRow, error)
@@ -86,7 +104,9 @@ type Querier interface {
 	PruneIdentityRefreshHistory(ctx context.Context) (int64, error)
 	PruneIdentitySessionAccess(ctx context.Context) (int64, error)
 	PruneIdentitySessions(ctx context.Context) (int64, error)
+	QueueFlowAsset(ctx context.Context, id pgtype.UUID) error
 	RadarExperiences(ctx context.Context, arg RadarExperiencesParams) ([][]byte, error)
+	ReadyFlowAsset(ctx context.Context, arg ReadyFlowAssetParams) (int64, error)
 	ReadyMediaUpload(ctx context.Context, arg ReadyMediaUploadParams) error
 	ReauthenticateIdentitySession(ctx context.Context, arg ReauthenticateIdentitySessionParams) error
 	RegisterAppleNotification(ctx context.Context, digest []byte) (int64, error)
@@ -97,6 +117,7 @@ type Querier interface {
 	RevokeIdentitySession(ctx context.Context, arg RevokeIdentitySessionParams) (int64, error)
 	RevokeProviderIdentity(ctx context.Context, arg RevokeProviderIdentityParams) (int64, error)
 	SaveExperience(ctx context.Context, arg SaveExperienceParams) error
+	SaveFlowPresentation(ctx context.Context, arg SaveFlowPresentationParams) error
 	SetChallengeDelivery(ctx context.Context, arg SetChallengeDeliveryParams) error
 	SetMediaBinding(ctx context.Context, arg SetMediaBindingParams) error
 	SupersedePhoneChallenges(ctx context.Context, subjectRef pgtype.Text) error

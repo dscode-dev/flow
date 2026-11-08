@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Flow API
-  version: 1.3.0
+  version: 1.4.0
   description: 'Identity por PHONE, GOOGLE e APPLE; Experiences e capas S3 verificadas. Credenciais opacas Flow,
     sem senha. Provedores/storage sem configuração retornam 503; nenhuma homologação externa é presumida.'
 servers:
@@ -1623,6 +1623,303 @@ paths:
         schema:
           type: string
           format: uuid
+  /v1/explore/experiences:
+    get:
+      operationId: exploreExperiences
+      summary: Busca nativa PostgreSQL somente PUBLIC; ordem starts_at/id e cursor assinado por conta/filtros
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExplorePage'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - &pr05path002
+        name: category_id
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 40
+      - &pr05path003
+        name: latitude
+        in: query
+        required: false
+        schema:
+          type: number
+          minimum: -90
+          maximum: 90
+      - &pr05path004
+        name: longitude
+        in: query
+        required: false
+        schema:
+          type: number
+          minimum: -180
+          maximum: 180
+      - &pr05path005
+        name: radius_m
+        in: query
+        required: false
+        schema:
+          type: number
+          minimum: 1000
+          maximum: 100000
+      - &pr05path006
+        name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+      - &pr05path007
+        name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 2048
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 120
+      - name: phase
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - LIVE
+          - UPCOMING
+      - name: from
+        in: query
+        required: false
+        schema: &pr05path001
+          type: string
+          format: date-time
+      - name: until
+        in: query
+        required: false
+        schema: *pr05path001
+      description: 'Título/descrição normalizados por unaccent e stemming português; websearch_to_tsquery. UTC from/until juntos,
+        sobreposição até31 dias; centro/raio juntos, arredondados a2 casas. Limite50, timeout2s, sem histórico de busca/GPS
+        obrigatório. Nenhum filtro de preço: modelo não registra valores.'
+  /v1/flows:
+    get:
+      operationId: listFlows
+      summary: Flows elegíveis LIVE primeiro, depois starts_at/id; paginação real, sem contagem social
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowsPage'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - *pr05path002
+      - *pr05path003
+      - *pr05path004
+      - *pr05path005
+      - *pr05path006
+      - *pr05path007
+      description: PUBLIC e UNLISTED com opt-in auditado explícito; PRIVATE nunca. Exige publicado/visível, conta ativa, sem
+        restrição, mídia READY e agenda na janela configurável. Cursor fixa snapshot da ordem; elegibilidade revogada é reavaliada.
+        URLs de mídia30s revogáveis na API, renovar pelo GET Flow. LIVE significa experiência acontecendo, não transmissão.
+  /v1/flows/{experienceId}:
+    get:
+      operationId: getFlow
+      summary: Revalida apresentação elegível e renova URLs temporárias
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowItem'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters: &pr05path010
+      - &pr05path009
+        name: experienceId
+        in: path
+        required: true
+        schema: &pr05path011
+          type: string
+          format: uuid
+  /v1/flows/{experienceId}/content:
+    get:
+      operationId: readFlowContent
+      summary: Mídia progressiva autorizada por capacidade assinada, sessão e elegibilidade atuais
+      security: []
+      responses:
+        '200':
+          description: Objeto autorizado; no-store
+          content: &pr05path008
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: Range autorizado; Accept-Ranges e Content-Range
+          content: *pr05path008
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - *pr05path009
+      - name: ticket
+        in: query
+        required: true
+        schema:
+          type: string
+          maxLength: 2048
+      - name: Range
+        in: header
+        required: false
+        schema:
+          type: string
+          pattern: ^bytes=([0-9]{1,10}-[0-9]{0,10}|-[0-9]{1,10})$
+      description: 'Sem Bearer no player: ticket HMAC de30s vinculado a sessão/conta/recurso/versões. Cada GET/range revalida
+        sessão, audiência, consentimento, lifecycle e mídia; sem redirect/S3 GET assinado. URL não é identificador permanente.
+        Bytes já entregues não podem ser recuperados; fluxos em andamento têm prazo HTTP limitado.'
+  /v1/experiences/{experienceId}/flow:
+    get:
+      operationId: getFlowPresentation
+      summary: Configuração da apresentação, somente proprietário
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowPresentation'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters: *pr05path010
+    put:
+      operationId: putFlowPresentation
+      summary: Substitui apresentação; UNLISTED exige consentimento explícito para descoberta pública
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowPresentation'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - *pr05path009
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^"(0|[1-9][0-9]*)"$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlowPresentationInput'
+      description: ETag próprio, inicial0. enabled=false revoga opt-in e URLs anteriores. IDs nulos removem associações; só
+        mídia da mesma Experience/owner e tipo correto em PROCESSING/READY. PRIVATE exige enabled=false. Dados antigos não recebem
+        consentimento por migração. Audit trail registra ator/UTC/versão/ação/request_id.
+  /v1/experiences/{experienceId}/flow/media:
+    post:
+      operationId: initiateFlowMedia
+      summary: Upload POST S3 com tamanho/MIME/expiração; somente proprietário
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          description: Operação concluída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoverUpload'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - *pr05path009
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: *pr05path011
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlowUploadInput'
+  /v1/experiences/{experienceId}/flow/media/{mediaId}:
+    get:
+      operationId: getFlowMedia
+      summary: Estado persistido de processamento, somente proprietário
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowAsset'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters: &pr05path012
+      - *pr05path009
+      - name: mediaId
+        in: path
+        required: true
+        schema: *pr05path011
+  /v1/experiences/{experienceId}/flow/media/{mediaId}/confirm:
+    post:
+      operationId: confirmFlowMedia
+      summary: Confirma intenção e enfileira processamento assíncrono, idempotente por mídia
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          description: Operação concluída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowAsset'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters: *pr05path012
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmptyTransition'
 components:
   responses:
     Error:
@@ -1663,6 +1960,206 @@ components:
       description: Credencial opaca de acesso Flow. Estado da sessão e status da conta sempre verificados no PostgreSQL.
       bearerFormat: opaque
   schemas:
+    ExplorePage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/Experience'
+        next_cursor:
+          type: string
+          nullable: true
+        as_of: &pr05schema001
+          type: string
+          format: date-time
+        valid_until: *pr05schema001
+      required:
+      - items
+      - next_cursor
+      - as_of
+      - valid_until
+    FlowItem:
+      type: object
+      additionalProperties: false
+      properties:
+        experience:
+          $ref: '#/components/schemas/Experience'
+        presentation_version:
+          type: integer
+          minimum: 0
+        image_kind:
+          type: string
+          enum:
+          - image
+          - poster
+          - cover
+        has_video:
+          type: boolean
+        duration_ms:
+          type: integer
+          minimum: 1
+          maximum: 15000
+          nullable: true
+        image_url:
+          type: string
+        video_url:
+          type: string
+          nullable: true
+        media_expires_at: *pr05schema001
+      required:
+      - experience
+      - presentation_version
+      - image_kind
+      - has_video
+      - duration_ms
+      - image_url
+      - video_url
+      - media_expires_at
+    FlowsPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/FlowItem'
+        next_cursor:
+          type: string
+          nullable: true
+        as_of: *pr05schema001
+        valid_until: *pr05schema001
+        window_hours:
+          type: integer
+          minimum: 1
+          maximum: 168
+      required:
+      - items
+      - next_cursor
+      - as_of
+      - valid_until
+      - window_hours
+    FlowPresentationInput:
+      type: object
+      additionalProperties: false
+      properties:
+        enabled:
+          type: boolean
+        unlisted_consent:
+          type: boolean
+          default: false
+        image_asset_id: &pr05schema002
+          type: string
+          format: uuid
+          nullable: true
+        video_asset_id: *pr05schema002
+      required:
+      - enabled
+    FlowPresentation:
+      type: object
+      additionalProperties: false
+      properties:
+        experience_id: &pr05schema003
+          type: string
+          format: uuid
+        enabled:
+          type: boolean
+        unlisted_consent_at:
+          type: string
+          format: date-time
+          nullable: true
+        image_asset_id: *pr05schema002
+        video_asset_id: *pr05schema002
+        version:
+          type: integer
+          minimum: 0
+      required:
+      - experience_id
+      - enabled
+      - unlisted_consent_at
+      - image_asset_id
+      - video_asset_id
+      - version
+    FlowUploadInput:
+      type: object
+      additionalProperties: false
+      properties:
+        content_type:
+          type: string
+          enum:
+          - image/jpeg
+          - image/png
+          - video/mp4
+          - video/quicktime
+        size_bytes:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 33554432
+      required:
+      - content_type
+      - size_bytes
+    FlowAsset:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *pr05schema003
+        experience_id: *pr05schema003
+        status:
+          type: string
+          enum:
+          - UPLOADING
+          - PROCESSING
+          - READY
+          - FAILED
+          - DELETED
+        content_type:
+          type: string
+          enum:
+          - image/jpeg
+          - image/png
+          - video/mp4
+          - video/quicktime
+        size_bytes:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 33554432
+        width:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 4096
+        height:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 4096
+        duration_ms:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 15000
+        failure_code:
+          type: string
+          nullable: true
+          enum:
+          - invalid_media
+          - processing_failed
+          - expired
+      required:
+      - id
+      - experience_id
+      - status
+      - content_type
+      - size_bytes
+      - width
+      - height
+      - duration_ms
+      - failure_code
     ExperienceInput:
       type: object
       additionalProperties: false

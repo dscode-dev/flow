@@ -12,6 +12,7 @@ type Config struct {
 	CursorKey                                         []byte
 	HomeSoonHours, HomeRadiusM, HomeLimit             int
 	RadarLimit, RadarMinZoom, RadarMaxSpan            int
+	FlowsWindowHours                                  int
 }
 
 func ParseConfig(get func(string) string, key []byte) (Config, error) {
@@ -49,6 +50,14 @@ func ParseConfig(get func(string) string, key []byte) (Config, error) {
 			return c, fmt.Errorf("%s inválido", p.k)
 		}
 		*p.dst = n
+	}
+	c.FlowsWindowHours = 48
+	if v := get("FLOWS_WINDOW_HOURS"); v != "" {
+		n, e := strconv.Atoi(v)
+		if e != nil || n < 1 || n > 168 {
+			return c, fmt.Errorf("FLOWS_WINDOW_HOURS inválido")
+		}
+		c.FlowsWindowHours = n
 	}
 	if len(key) != 32 {
 		return c, fmt.Errorf("chave de cursor inválida")

@@ -26,10 +26,11 @@ type Service struct {
 	storage    *Storage
 	daily      int
 	processing chan struct{}
+	flow       FlowConfig
 }
 
 func New(pool *pgxpool.Pool, storage *Storage, daily int) *Service {
-	return &Service{pool: pool, storage: storage, daily: daily, processing: make(chan struct{}, 2)}
+	return &Service{pool: pool, storage: storage, daily: daily, processing: make(chan struct{}, 2), flow: DefaultFlowConfig()}
 }
 func id(s string) pgtype.UUID      { u, e := uuid.Parse(s); return pgtype.UUID{Bytes: u, Valid: e == nil} }
 func newID() pgtype.UUID           { return pgtype.UUID{Bytes: uuid.Must(uuid.NewV7()), Valid: true} }

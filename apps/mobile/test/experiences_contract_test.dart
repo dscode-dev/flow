@@ -17,6 +17,9 @@ import 'package:flow_mobile/features/home/home_controller.dart';
 import 'package:flow_mobile/features/home/home_model.dart';
 import 'package:flow_mobile/features/radar/radar_controller.dart';
 import 'package:flow_mobile/features/radar/radar_model.dart';
+import 'package:flow_mobile/features/explore/discovery_repository.dart';
+import 'package:flow_mobile/features/explore/discovery_controller.dart';
+import 'package:flow_mobile/features/explore/flow_upload.dart';
 
 import 'support/auth_fakes.dart' show MemoryStore, FakeSocial;
 
@@ -219,6 +222,78 @@ void main() {
         home.value.document!.sections.firstWhere((s) => s.id == 'nearby').items,
         isEmpty,
       );
+      var flowDraft = await repo.create(
+        ExperienceInput.fromJson({
+          ...input.toJson(),
+          'starts_at': DateTime.now()
+              .toUtc()
+              .add(const Duration(hours: 1))
+              .toIso8601String(),
+          'ends_at': DateTime.now()
+              .toUtc()
+              .add(const Duration(hours: 3))
+              .toIso8601String(),
+        }),
+        const Uuid().v4(),
+      );
+      flowDraft = await repo.transition(flowDraft, 'publish');
+      final discovery = DiscoveryRepository(repo, origin, storage);
+      final explore = DiscoveryPager<Experience>(
+        access,
+        discovery.search,
+        (e) => e.id,
+      );
+      addTearDown(explore.dispose);
+      explore.query = {'q': 'sintetica'};
+      await explore.load();
+      expect(explore.issue, isNull);
+      expect(explore.items.any((e) => e.id == flowDraft.id), true);
+      final flows = await discovery.flows({});
+      expect(flows.items.any((f) => f.experience.id == flowDraft.id), true);
+      var flow = await discovery.flow(flowDraft.id);
+      expect(await discovery.image(flow, CancelToken()), isNotEmpty);
+      var presentation = await discovery.presentation(flowDraft.id);
+      final flowIntent = FlowUpload(
+        discovery,
+        flowDraft.id,
+        selection.bytes,
+        selection.contentType,
+      );
+      var asset = await flowIntent.run(CancelToken());
+      expect(asset.status, 'PROCESSING');
+      presentation = await discovery.save(
+        flowDraft.id,
+        presentation,
+        enabled: true,
+        consent: false,
+        image: asset.id,
+      );
+      for (var tries = 0; tries < 50 && asset.processing; tries++) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        asset = await discovery.asset(flowDraft.id, asset.id);
+      }
+      expect(asset.status, 'READY');
+      flow = await discovery.flow(flowDraft.id);
+      expect(flow.imageKind, 'image');
+      expect(await discovery.image(flow, CancelToken()), isNotEmpty);
+      presentation = await discovery.save(
+        flowDraft.id,
+        presentation,
+        enabled: false,
+        consent: false,
+      );
+      await expectLater(
+        discovery.flow(flowDraft.id),
+        throwsA(isA<ExperienceIssue>().having((e) => e.status, 'status', 404)),
+      );
+      await discovery.save(
+        flowDraft.id,
+        presentation,
+        enabled: true,
+        consent: false,
+      );
+      explore.pause();
+      await repo.transition(flowDraft, 'cancel');
       final corrected = ExperienceInput.fromJson({
         ...published.input.toJson(),
         'title': 'Correção permitida',

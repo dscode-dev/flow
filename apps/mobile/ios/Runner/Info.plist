@@ -35,7 +35,12 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Centralizar o Radar na sua região aproximada somente quando você solicitar. Não rastreamos deslocamentos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Selecionar uma foto para a capa da experiência que você está criando.</string>
+	<string>Selecionar imagens e vídeos para a capa e a apresentação da sua experiência nos Flows.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

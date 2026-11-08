@@ -26,10 +26,12 @@ type Filter struct {
 	Limit     int32   `json:"limit"`
 }
 type cursor struct {
-	Scope   string    `json:"scope"`
-	Time    time.Time `json:"time"`
-	ID      string    `json:"id"`
-	Expires time.Time `json:"expires"`
+	Snapshot time.Time `json:"snapshot,omitempty"`
+	Rank     int32     `json:"rank,omitempty"`
+	Scope    string    `json:"scope"`
+	Time     time.Time `json:"time"`
+	ID       string    `json:"id"`
+	Expires  time.Time `json:"expires"`
 }
 
 func (s *Service) signCursor(c cursor) string {
