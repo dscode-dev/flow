@@ -157,6 +157,11 @@ class _HomePageState extends ConsumerState<HomePage>
                 label: const Text('Explorar'),
               ),
               TextButton.icon(
+                onPressed: () => _open('/social'),
+                icon: const Icon(Icons.people_outline),
+                label: const Text('Social'),
+              ),
+              TextButton.icon(
                 onPressed: () => _open('/experiences'),
                 icon: const Icon(Icons.calendar_month_outlined),
                 label: const Text('Minhas experiências'),

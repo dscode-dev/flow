@@ -6,12 +6,23 @@ import 'package:uuid/uuid.dart';
 import '../experiences/data/experiences_repository.dart';
 import '../experiences/domain/experience_issue.dart';
 import 'discovery_model.dart';
-import 'discovery_repository.dart';
+
+abstract class FlowUploadTarget {
+  Dio get transport;
+  Future<CoverAuthorization> initiate(
+    String eid,
+    String ct,
+    int size,
+    String key,
+    CancelToken cancel,
+  );
+  Future<FlowAsset> confirm(String eid, String id, CancelToken cancel);
+}
 
 class FlowUpload {
   FlowUpload(this.repo, this.eid, this.bytes, this.contentType)
     : key = const Uuid().v4();
-  final DiscoveryRepository repo;
+  final FlowUploadTarget repo;
   final String eid, contentType, key;
   final Uint8List bytes;
   CoverAuthorization? authorization;

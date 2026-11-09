@@ -51,10 +51,12 @@ class FlowPlayback extends ChangeNotifier {
   FlowPlayback(this.create);
   final FlowPlayer Function(Uri) create;
   FlowPlayer? player;
+  Uri? source;
   bool loading = false, failed = false, playing = false, _disposed = false;
   int _generation = 0;
   Future<void> _queue = Future.value();
   Future<void> close() {
+    source = null;
     _generation++;
     loading = false;
     playing = false;
@@ -69,6 +71,7 @@ class FlowPlayback extends ChangeNotifier {
 
   Future<void> open(Uri uri, {required bool autoplay}) {
     close();
+    source = uri;
     final g = _generation;
     loading = true;
     failed = false;

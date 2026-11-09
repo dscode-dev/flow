@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import '../auth/auth_state.dart';
@@ -15,12 +16,20 @@ import '../../features/explore/flow_management_page.dart';
 import '../../features/participation/agenda_page.dart';
 import '../../features/participation/participation_management_page.dart';
 import '../../features/participation/checkin_page.dart';
+import '../../features/social/social_page.dart';
+import '../../features/social/social_compose_page.dart';
 
 bool isExperiencePath(String path) =>
     path == '/app' ||
     path == '/radar' ||
     path == '/explore' ||
     path == '/agenda' ||
+    path == '/social' ||
+    path == '/social/new' ||
+    path == '/social/blocks' ||
+    RegExp(
+      r'^/social/(posts|profiles)/[0-9a-fA-F-]{36}(/edit|/followers|/following)?$',
+    ).hasMatch(path) ||
     path == '/flows' ||
     RegExp(r'^/flows/[0-9a-fA-F-]{36}$').hasMatch(path) ||
     path == '/experiences' ||
@@ -88,6 +97,52 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/radar', builder: (_, _) => const RadarPage()),
       GoRoute(path: '/explore', builder: (_, _) => const ExplorePage()),
       GoRoute(path: '/agenda', builder: (_, _) => const AgendaPage()),
+      GoRoute(path: '/social', builder: (_, _) => const SocialPage()),
+      GoRoute(
+        path: '/social/new',
+        builder: (_, _) => const SocialComposePage(),
+      ),
+      GoRoute(
+        path: '/social/blocks',
+        builder: (_, _) => const SocialPage(section: 'blocks'),
+      ),
+      GoRoute(
+        path: '/social/posts/:id/edit',
+        builder: (_, s) => SocialComposePage(
+          id: s.pathParameters['id']!,
+          key: ValueKey('social-edit:${s.pathParameters['id']}'),
+        ),
+      ),
+      GoRoute(
+        path: '/social/posts/:id',
+        builder: (_, s) => SocialPage(
+          postId: s.pathParameters['id']!,
+          key: ValueKey('social-post:${s.pathParameters['id']}'),
+        ),
+      ),
+      GoRoute(
+        path: '/social/profiles/:id/followers',
+        builder: (_, s) => SocialPage(
+          userId: s.pathParameters['id']!,
+          section: 'followers',
+          key: ValueKey('social-followers:${s.pathParameters['id']}'),
+        ),
+      ),
+      GoRoute(
+        path: '/social/profiles/:id/following',
+        builder: (_, s) => SocialPage(
+          userId: s.pathParameters['id']!,
+          section: 'following',
+          key: ValueKey('social-following:${s.pathParameters['id']}'),
+        ),
+      ),
+      GoRoute(
+        path: '/social/profiles/:id',
+        builder: (_, s) => SocialPage(
+          userId: s.pathParameters['id']!,
+          key: ValueKey('social-profile:${s.pathParameters['id']}'),
+        ),
+      ),
       GoRoute(
         path: '/experiences/:id/participants',
         builder: (_, state) =>

@@ -9,11 +9,13 @@ import '../experiences/data/cover_upload.dart';
 import '../experiences/domain/experience.dart';
 import '../experiences/domain/experience_issue.dart';
 import 'discovery_model.dart';
+import 'flow_upload.dart';
 
-class DiscoveryRepository {
+class DiscoveryRepository implements FlowUploadTarget {
   DiscoveryRepository(this.api, this.baseUrl, this.transport);
   final ExperiencesRepository api;
   final String baseUrl;
+  @override
   final Dio transport;
   Future<DiscoveryPage<Experience>> search(
     Map<String, dynamic> query, {
@@ -74,6 +76,7 @@ class DiscoveryRepository {
       cancel: cancel,
     ),
   );
+  @override
   Future<CoverAuthorization> initiate(
     String eid,
     String ct,
@@ -89,6 +92,7 @@ class DiscoveryRepository {
       cancel: cancel,
     ),
   );
+  @override
   Future<FlowAsset> confirm(String eid, String id, CancelToken cancel) async =>
       FlowAsset.fromJson(
         await api.discoveryRequest(
