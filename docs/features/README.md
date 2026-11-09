@@ -9,3 +9,5 @@ PR-01.C: [readiness e checklist externo](authentication-release-readiness.md) e 
 PR-02.A: [Experiences backend e operação de capas](experiences.md), [contrato Flutter PR-02.B](experiences-mobile-integration.md), [schema e índices](../architecture/experiences-database.md) e [ADR 0009](../decisions/0009-experiences-lifecycle-media.md).
 
 PR-06: [Participação, convites, Minha Agenda e check-in](participation.md), [ADR0011](../decisions/0011-participation-capacity-checkin.md) e [relatório](../architecture/pr-06-completion-report.md).
+
+PR-07: [Social](social.md), [ADR0012](../decisions/0012-social-publication-graph-media.md) e [relatório](../architecture/pr-07-completion-report.md).

@@ -88,6 +88,7 @@ type Querier interface {
 	InsertParticipationAudit(ctx context.Context, arg InsertParticipationAuditParams) error
 	InsertProviderIdentity(ctx context.Context, arg InsertProviderIdentityParams) error
 	InsertRefreshCredential(ctx context.Context, arg InsertRefreshCredentialParams) error
+	InsertSocialAsset(ctx context.Context, arg InsertSocialAssetParams) error
 	IsReservedHandle(ctx context.Context, handle string) (bool, error)
 	LastPhoneChallengeAt(ctx context.Context, subjectRef pgtype.Text) (pgtype.Timestamptz, error)
 	ListExperienceCategories(ctx context.Context) ([]ListExperienceCategoriesRow, error)
@@ -150,6 +151,46 @@ type Querier interface {
 	SaveParticipationSettings(ctx context.Context, arg SaveParticipationSettingsParams) error
 	SetChallengeDelivery(ctx context.Context, arg SetChallengeDeliveryParams) error
 	SetMediaBinding(ctx context.Context, arg SetMediaBindingParams) error
+	SocialActive(ctx context.Context, dollar_1 pgtype.UUID) (bool, error)
+	SocialAssetAllowed(ctx context.Context, arg SocialAssetAllowedParams) (bool, error)
+	SocialAudit(ctx context.Context, arg SocialAuditParams) error
+	SocialBindMedia(ctx context.Context, arg SocialBindMediaParams) error
+	SocialBlock(ctx context.Context, arg SocialBlockParams) (int64, error)
+	SocialBlocks(ctx context.Context, arg SocialBlocksParams) ([]SocialBlocksRow, error)
+	SocialCleanup(ctx context.Context) error
+	SocialComment(ctx context.Context, arg SocialCommentParams) error
+	SocialComments(ctx context.Context, arg SocialCommentsParams) ([]SocialCommentsRow, error)
+	SocialConnected(ctx context.Context, arg SocialConnectedParams) (bool, error)
+	SocialDeleteComment(ctx context.Context, id pgtype.UUID) error
+	SocialDeletePost(ctx context.Context, id pgtype.UUID) error
+	SocialEditPost(ctx context.Context, arg SocialEditPostParams) error
+	SocialExperienceEligible(ctx context.Context, arg SocialExperienceEligibleParams) (bool, error)
+	SocialExperienceOptions(ctx context.Context, arg SocialExperienceOptionsParams) ([]SocialExperienceOptionsRow, error)
+	SocialFeed(ctx context.Context, arg SocialFeedParams) ([]SocialFeedRow, error)
+	SocialFollow(ctx context.Context, arg SocialFollowParams) (int64, error)
+	SocialInsertPost(ctx context.Context, arg SocialInsertPostParams) error
+	SocialLike(ctx context.Context, arg SocialLikeParams) (int64, error)
+	SocialLockComment(ctx context.Context, id pgtype.UUID) (SocialComment, error)
+	SocialLockPost(ctx context.Context, id pgtype.UUID) (SocialPost, error)
+	SocialModerateComment(ctx context.Context, arg SocialModerateCommentParams) error
+	SocialModeratePost(ctx context.Context, arg SocialModeratePostParams) error
+	SocialOperationalPosts(ctx context.Context, arg SocialOperationalPostsParams) ([][]byte, error)
+	SocialOperationalReports(ctx context.Context) ([][]byte, error)
+	SocialOwnBlock(ctx context.Context, arg SocialOwnBlockParams) (bool, error)
+	SocialPairLock(ctx context.Context, arg SocialPairLockParams) error
+	SocialPeople(ctx context.Context, arg SocialPeopleParams) ([]SocialPeopleRow, error)
+	SocialPost(ctx context.Context, arg SocialPostParams) ([]byte, error)
+	SocialProfile(ctx context.Context, arg SocialProfileParams) ([]byte, error)
+	SocialRate(ctx context.Context, userID pgtype.UUID) (int32, error)
+	SocialReceipt(ctx context.Context, arg SocialReceiptParams) (SocialReceipt, error)
+	SocialReport(ctx context.Context, arg SocialReportParams) (int64, error)
+	SocialResolveReport(ctx context.Context, id pgtype.UUID) (int64, error)
+	SocialRestrict(ctx context.Context, arg SocialRestrictParams) error
+	SocialSaveReceipt(ctx context.Context, arg SocialSaveReceiptParams) error
+	SocialSeverFollows(ctx context.Context, arg SocialSeverFollowsParams) error
+	SocialUnblock(ctx context.Context, arg SocialUnblockParams) (int64, error)
+	SocialUnfollow(ctx context.Context, arg SocialUnfollowParams) (int64, error)
+	SocialUnlike(ctx context.Context, arg SocialUnlikeParams) (int64, error)
 	SupersedePhoneChallenges(ctx context.Context, subjectRef pgtype.Text) error
 	TouchAuthenticatedUser(ctx context.Context, id pgtype.UUID) error
 	TouchIdentitySession(ctx context.Context, id pgtype.UUID) error

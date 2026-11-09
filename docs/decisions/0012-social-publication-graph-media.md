@@ -1,0 +1,19 @@
+# ADR0012 — Social, autorização revogável e Media compartilhada
+
+Status: aceito para V1 local. Data: 09/11/2026. [Guia operacional/contratos](../features/social.md).
+
+Social é módulo Go/PG no mesmo backend. Posts/comentários referenciam Identity e Experiences existentes. PERSONAL e EXPERIENCE_PUBLIC são os únicos contextos implementados. PUBLIC permite circulação autenticada na plataforma; FOLLOWERS exige relação atual, com exceção do próprio autor. Descobrir inclui somente PUBLIC; Seguindo exige relação atual. Perfil público não equivale a tornar todos os posts públicos.
+
+EXPERIENCE_PUBLIC exige Experience PUBLIC/PUBLISHED/VISIBLE, organizador ativo e sem restrição, e autoria do organizador ou participante atualmente CONFIRMED/não bloqueado. O fim do horário preserva um registro da experiência vivida; cancelamento/archive/moderação/troca de audiência/remoção de participação retiram sua elegibilidade. Não existe consentimento Social para UNLISTED, mesmo com opt-in Flows. Cada leitura/range consulta o estado atual. Sem cópias privadas de local/agenda em posts.
+
+Bloqueio é simétrico para acesso/interação Social, remove follows nas duas direções e oculta interações anteriores incompatíveis sem restaurá-las ao desbloquear. Likes/comentários históricos podem voltar a ser elegíveis após desbloqueio; follows precisam de nova intenção. Restrições operacionais de conta afetam Social; não alteram a conta Identity nem criam assentos/cancelam participações. As políticas de Participation continuam independentes e também são avaliadas em posts contextuais. Não se usa bloqueio Social para encobrir denúncias já registradas.
+
+SQL centraliza active/connected/experience_eligible/can_read. Feed keyset usa snapshot/time/UUID, índices parciais e limite20/50. Documentos/contagens são montados em uma consulta SQL por página, sem chamadas HTTP/PG por card. Sem cache compartilhado/fan-out/engajamento fictício. Timeout3s; medir carga/planos em homologação antes de ampliar limites. Contagens excluem contas/conteúdo indisponível e relações bloqueadas para o observador.
+
+Escritas: lock Identity antes de agregado; locks por par para grafo/interações, lock de post para concorrência; constraints únicas garantem likes/follows. Recibos24h ligam ator/chave/operação/corpo e retornam somente UUID, nunca texto retirado. Audit/outbox no mesmo commit; eventos sem texto/segredos, IDs mínimos. Limites persistidos contam tentativas, inclusive falhas. Editar só texto, ETag obrigatório e janela configurável24h; contexto, audiência e mídias são imutáveis após criar. Excluir continua permitido ao autor para retirar conteúdo indisponível.
+
+Media generaliza minimamente media.flow_assets com purpose FLOW/SOCIAL e Experience nula somente para SOCIAL. Mesma fila/lease/FFmpeg/sanitização/limites/S3/worker; ownership e binding exclusivo, somente READY em posts. Capability30s ligada a conta/sessão/post/asset/versão/variante e revalidação por GET/range. Sem presigned GET público. Staging/órfãos/deletados têm limpeza real. Imagem sob demanda, vídeo silencioso com toque, player serializado e descarte em background/saída/expiração, sem preload da timeline.
+
+Moderação não espera painel: CLI restrita com credencial separada/operador/caso e audit/outbox permite inspeção limitada, denúncias, ocultação/restauração/retirada e restrição Social. Sem endpoint administrativo nem detecção automática/IA. Acesso a banco continua fronteira operacional de confiança, exige mínimo privilégio/segregação e revisão em produção.
+
+PR-08 poderá reutilizar posts/comments/likes/post_media e incluir novos contextos com políticas explícitas. Este ADR não cria contexto EVENT_SPACE nem concede acesso a PRIVATE/UNLISTED. PR-10 usará ID/hash/size/MIME/variant/status/revogação/fallback; nenhum signaling/WebRTC/P2P implementado.

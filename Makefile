@@ -59,3 +59,11 @@ participation-mobile-contract:
 
 experiences-maintenance:
 	$(COMPOSE) run --rm api /app/experiences-maintenance
+
+.PHONY: social-test
+social-test:
+	FLOW_EXPERIENCES_TEST_FILTER=TestSocial sh scripts/experiences-test.sh
+
+.PHONY: social-mobile-contract
+social-mobile-contract:
+	FLOW_FLUTTER_CONTRACT_BIN="$(FLUTTER)" FLOW_EXPERIENCES_TEST_FILTER=TestFlutterSocialContract sh scripts/experiences-test.sh

@@ -8,6 +8,7 @@ RUN CGO_ENABLED=0 go build -trimpath -o /out/api ./cmd/api && \
     CGO_ENABLED=0 go build -trimpath -o /out/probe ./cmd/probe && \
     CGO_ENABLED=0 go build -trimpath -o /out/identity-retention ./cmd/identity-retention && \
     CGO_ENABLED=0 go build -trimpath -o /out/experiences-maintenance ./cmd/experiences-maintenance && \
+    CGO_ENABLED=0 go build -trimpath -o /out/social-moderation ./cmd/social-moderation && \
     CGO_ENABLED=0 go build -trimpath -o /out/flow-media-worker ./cmd/flow-media-worker
 
 FROM alpine:3.22

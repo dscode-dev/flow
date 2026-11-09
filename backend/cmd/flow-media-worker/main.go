@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"flow.local/backend/internal/media"
+	"flow.local/backend/internal/platform/database/dbgen"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
 	"os"
@@ -45,6 +46,10 @@ func run() error {
 			slog.Error("flow media job unavailable")
 		}
 		if time.Since(maintenance) > time.Minute {
+			e := dbgen.New(p).SocialCleanup(ctx)
+			if e != nil {
+				slog.Error("social maintenance unavailable")
+			}
 			n, e := m.CleanupFlows(ctx)
 			if e != nil {
 				slog.Error("flow media cleanup unavailable")

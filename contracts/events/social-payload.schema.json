@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.flow.local/events/social-payload.schema.json",
+  "title": "Social event payload v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "resource_id"
+  ],
+  "properties": {
+    "resource_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "actor_user_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "post_id": {
+      "type": "string",
+      "format": "uuid"
+    }
+  }
+}

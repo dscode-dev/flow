@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"flow.local/backend/internal/identity"
@@ -74,7 +75,7 @@ func assetView(u dbgen.MediaFlowAsset) FlowAsset {
 }
 func (s *Service) InitiateFlow(ctx context.Context, session *identity.Session, eid, key string, in InitiateRequest, requestID string) (Initiated, error) {
 	var out Initiated
-	if !id(eid).Valid || !id(key).Valid {
+	if (eid != "" && !id(eid).Valid) || !id(key).Valid {
 		return out, identity.ErrInvalid
 	}
 	if in.SizeBytes < 1 || in.SizeBytes > s.flow.MaxBytes || ((in.ContentType == "image/jpeg" || in.ContentType == "image/png") && in.SizeBytes > MaxBytes) {
@@ -93,25 +94,35 @@ func (s *Service) InitiateFlow(ctx context.Context, session *identity.Session, e
 			return e
 		}
 		q := dbgen.New(tx)
-		if _, e := q.LockExperience(ctx, id(eid)); e != nil {
-			return identity.ErrNotFound
-		}
-		doc, e := q.GetExperience(ctx, id(eid))
-		if e != nil {
-			return e
-		}
-		var owner struct {
-			Creator string `json:"creator_user_id"`
-			Status  string `json:"status"`
-		}
-		if e = json.Unmarshal(doc, &owner); e != nil {
-			return e
-		}
-		if owner.Creator != session.UserID {
-			return identity.ErrNotFound
-		}
-		if owner.Status != "DRAFT" && owner.Status != "PUBLISHED" {
-			return identity.ErrInvalid
+		if eid != "" {
+			if _, e := q.LockExperience(ctx, id(eid)); e != nil {
+				return identity.ErrNotFound
+			}
+			doc, e := q.GetExperience(ctx, id(eid))
+			if e != nil {
+				return e
+			}
+			var owner struct {
+				Creator string `json:"creator_user_id"`
+				Status  string `json:"status"`
+			}
+			if e = json.Unmarshal(doc, &owner); e != nil {
+				return e
+			}
+			if owner.Creator != session.UserID {
+				return identity.ErrNotFound
+			}
+			if owner.Status != "DRAFT" && owner.Status != "PUBLISHED" {
+				return identity.ErrInvalid
+			}
+		} else {
+			active, e := q.SocialActive(ctx, id(session.UserID))
+			if e != nil {
+				return e
+			}
+			if !active {
+				return identity.ErrRestricted
+			}
 		}
 		u, e := q.FindFlowAssetKey(ctx, dbgen.FindFlowAssetKeyParams{OwnerUserID: id(session.UserID), IdempotencyKey: id(key)})
 		if e != nil && !errors.Is(e, pgx.ErrNoRows) {
@@ -138,7 +149,11 @@ func (s *Service) InitiateFlow(ctx context.Context, session *identity.Session, e
 			uid := newID()
 			stem := "flows/" + textID(uid)
 			expiry := pgtype.Timestamptz{Time: time.Now().UTC().Add(5 * time.Minute), Valid: true}
-			e = q.InsertFlowAsset(ctx, dbgen.InsertFlowAssetParams{ID: uid, ExperienceID: id(eid), OwnerUserID: id(session.UserID), IdempotencyKey: id(key), RequestHash: hash[:], ContentType: in.ContentType, SizeBytes: in.SizeBytes, StagingKey: stem + "/staging", ObjectKey: stem + "/media", PosterKey: stem + "/poster", ExpiresAt: expiry})
+			if eid == "" {
+				e = q.InsertSocialAsset(ctx, dbgen.InsertSocialAssetParams{ID: uid, OwnerUserID: id(session.UserID), IdempotencyKey: id(key), RequestHash: hash[:], ContentType: in.ContentType, SizeBytes: in.SizeBytes, StagingKey: stem + "/staging", ObjectKey: stem + "/media", PosterKey: stem + "/poster", ExpiresAt: expiry})
+			} else {
+				e = q.InsertFlowAsset(ctx, dbgen.InsertFlowAssetParams{ID: uid, ExperienceID: id(eid), OwnerUserID: id(session.UserID), IdempotencyKey: id(key), RequestHash: hash[:], ContentType: in.ContentType, SizeBytes: in.SizeBytes, StagingKey: stem + "/staging", ObjectKey: stem + "/media", PosterKey: stem + "/poster", ExpiresAt: expiry})
+			}
 			if e != nil {
 				return e
 			}
@@ -157,6 +172,14 @@ func (s *Service) InitiateFlow(ctx context.Context, session *identity.Session, e
 	return out, err
 }
 func flowAudit(ctx context.Context, q *dbgen.Queries, u dbgen.MediaFlowAsset, action, req string) error {
+	if u.Purpose == "SOCIAL" {
+		event := "social.media." + strings.TrimPrefix(action, "flow.media.")
+		if e := q.SocialAudit(ctx, dbgen.SocialAuditParams{ID: newID(), Actor: textID(u.OwnerUserID), ResourceID: u.ID, Action: event, RequestID: req, Details: []byte(`{}`)}); e != nil {
+			return e
+		}
+		payload, _ := json.Marshal(map[string]any{"resource_id": textID(u.ID), "actor_user_id": textID(u.OwnerUserID)})
+		return q.AppendOutbox(ctx, dbgen.AppendOutboxParams{EventID: newID(), EventType: event, SchemaVersion: 1, AggregateID: u.ID, OccurredAt: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true}, Payload: payload})
+	}
 	return q.InsertFlowAudit(ctx, dbgen.InsertFlowAuditParams{ID: newID(), ExperienceID: u.ExperienceID, ActorUserID: u.OwnerUserID, Action: action, Version: 0, RequestID: req, Details: []byte(`{}`)})
 }
 func (s *Service) FlowAsset(ctx context.Context, session *identity.Session, eid, aid string) (FlowAsset, error) {
@@ -170,7 +193,7 @@ func (s *Service) FlowAsset(ctx context.Context, session *identity.Session, eid,
 	if e != nil {
 		return FlowAsset{}, e
 	}
-	if textID(u.OwnerUserID) != session.UserID || textID(u.ExperienceID) != eid {
+	if textID(u.OwnerUserID) != session.UserID || assetExperience(u) != eid {
 		return FlowAsset{}, identity.ErrNotFound
 	}
 	return assetView(u), nil
@@ -182,6 +205,15 @@ func (s *Service) ConfirmFlow(ctx context.Context, session *identity.Session, ei
 			return e
 		}
 		q := dbgen.New(tx)
+		if eid == "" {
+			ok, e := q.SocialActive(ctx, id(session.UserID))
+			if e != nil {
+				return e
+			}
+			if !ok {
+				return identity.ErrRestricted
+			}
+		}
 		u, e := q.LockFlowAsset(ctx, id(aid))
 		if errors.Is(e, pgx.ErrNoRows) {
 			return identity.ErrNotFound
@@ -189,7 +221,7 @@ func (s *Service) ConfirmFlow(ctx context.Context, session *identity.Session, ei
 		if e != nil {
 			return e
 		}
-		if textID(u.OwnerUserID) != session.UserID || textID(u.ExperienceID) != eid {
+		if textID(u.OwnerUserID) != session.UserID || assetExperience(u) != eid {
 			return identity.ErrNotFound
 		}
 		if u.Status == "UPLOADING" {
@@ -221,7 +253,7 @@ func (s *Service) BindFlow(ctx context.Context, tx pgx.Tx, eid, owner string, ai
 		return ErrOwnership
 	}
 	isVideo := u.ContentType == "video/mp4" || u.ContentType == "video/quicktime"
-	if textID(u.ExperienceID) != eid || textID(u.OwnerUserID) != owner || isVideo != video || (u.Status != "PROCESSING" && u.Status != "READY") {
+	if assetExperience(u) != eid || textID(u.OwnerUserID) != owner || isVideo != video || (u.Status != "PROCESSING" && u.Status != "READY") {
 		return ErrOwnership
 	}
 	return nil
@@ -268,4 +300,21 @@ func (s *Service) CleanupFlows(ctx context.Context) (int, error) {
 		return q.CleanupFlowAudit(ctx)
 	})
 	return n, err
+}
+
+// Social uploads share the durable media queue, processor, limits and storage.
+func assetExperience(u dbgen.MediaFlowAsset) string {
+	if !u.ExperienceID.Valid {
+		return ""
+	}
+	return textID(u.ExperienceID)
+}
+func (s *Service) InitiateSocial(ctx context.Context, a *identity.Session, key string, in InitiateRequest, req string) (Initiated, error) {
+	return s.InitiateFlow(ctx, a, "", key, in, req)
+}
+func (s *Service) SocialAsset(ctx context.Context, a *identity.Session, aid string) (FlowAsset, error) {
+	return s.FlowAsset(ctx, a, "", aid)
+}
+func (s *Service) ConfirmSocial(ctx context.Context, a *identity.Session, aid, req string) (FlowAsset, error) {
+	return s.ConfirmFlow(ctx, a, "", aid, req)
 }

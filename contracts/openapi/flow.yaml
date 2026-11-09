@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Flow API
-  version: 1.5.0
+  version: 1.6.0
   description: 'Identity por PHONE, GOOGLE e APPLE; Experiences e capas S3 verificadas. Credenciais opacas Flow,
     sem senha. Provedores/storage sem configuração retornam 503; nenhuma homologação externa é presumida.'
 servers:
@@ -2830,6 +2830,1016 @@ paths:
         schema:
           type: string
           maxLength: 2048
+  /v1/social/experience-options:
+    get:
+      operationId: listSocialExperienceOptions
+      summary: listSocialExperienceOptions
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialExperienceOptions'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 2048
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/limits:
+    get:
+      operationId: getSocialLimits
+      summary: getSocialLimits
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialLimits'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/feed:
+    get:
+      operationId: getSocialFeed
+      summary: getSocialFeed
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialPostPage'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 2048
+      - name: mode
+        in: query
+        schema:
+          type: string
+          enum:
+          - DISCOVER
+          - FOLLOWING
+          default: DISCOVER
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/blocks:
+    get:
+      operationId: listSocialBlocks
+      summary: listSocialBlocks
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialBlocksPage'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 2048
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/posts:
+    post:
+      operationId: createSocialPost
+      summary: createSocialPost
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialReceipt'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialInput'
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/posts/{postId}:
+    get:
+      operationId: getSocialPost
+      summary: getSocialPost
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialPost'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+    patch:
+      operationId: editSocialPost
+      summary: editSocialPost
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialReceipt'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^"[1-9][0-9]*"$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialEdit'
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+    delete:
+      operationId: deleteSocialPost
+      summary: deleteSocialPost
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialReceipt'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/posts/{postId}/like:
+    put:
+      operationId: likeSocialPost
+      summary: likeSocialPost
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialReceipt'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+    delete:
+      operationId: unlikeSocialPost
+      summary: unlikeSocialPost
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialReceipt'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/posts/{postId}/comments:
+    get:
+      operationId: listSocialComments
+      summary: listSocialComments
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialCommentPage'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 2048
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+    post:
+      operationId: createSocialComment
+      summary: createSocialComment
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialReceipt'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialCommentInput'
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/posts/{postId}/comments/{commentId}:
+    delete:
+      operationId: deleteSocialComment
+      summary: deleteSocialComment
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialReceipt'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: commentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/profiles/{userId}:
+    get:
+      operationId: getSocialProfile
+      summary: getSocialProfile
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialProfile'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/profiles/{userId}/posts:
+    get:
+      operationId: listSocialProfilePosts
+      summary: listSocialProfilePosts
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialPostPage'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 2048
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/profiles/{userId}/followers:
+    get:
+      operationId: listSocialProfileFollowers
+      summary: listSocialProfileFollowers
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialPeoplePage'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 2048
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/profiles/{userId}/following:
+    get:
+      operationId: listSocialProfileFollowing
+      summary: listSocialProfileFollowing
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialPeoplePage'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 2048
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/profiles/{userId}/follow:
+    put:
+      operationId: setSocialFollow
+      summary: setSocialFollow
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialReceipt'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+    delete:
+      operationId: removeSocialFollow
+      summary: removeSocialFollow
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialReceipt'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/profiles/{userId}/block:
+    put:
+      operationId: setSocialBlock
+      summary: setSocialBlock
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialReceipt'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+    delete:
+      operationId: removeSocialBlock
+      summary: removeSocialBlock
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialReceipt'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/reports:
+    post:
+      operationId: reportSocialContent
+      summary: reportSocialContent
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialReceipt'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialReportInput'
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/media:
+    post:
+      operationId: initiateSocialMedia
+      summary: initiateSocialMedia
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoverUpload'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlowUploadInput'
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/media/{mediaId}:
+    get:
+      operationId: getSocialMedia
+      summary: getSocialMedia
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialAsset'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: mediaId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/media/{mediaId}/confirm:
+    post:
+      operationId: confirmSocialMedia
+      summary: confirmSocialMedia
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Estado autoritativo atual; no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialAsset'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: mediaId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+      description: Autorização atual por objeto, bloqueios simétricos e contas ativas.
+        Sem replay automático de escritas. Recibo UUID mínimo por ator/chave/operação/corpo
+        por 24h; reutilização diferente 409. Listas por snapshot/recência/UUID, cursor
+        HMAC ligado a sessão/recurso/modo/limite por 15min. Revalidar em até30s/background/mudança
+        de relação. Erros usam envelope padrão e indisponíveis retornam404.
+  /v1/social/posts/{postId}/media/{mediaId}/content:
+    get:
+      operationId: streamSocialMedia
+      summary: Capacidade30s revogável por GET/range; sem redirect S3
+      security: []
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: mediaId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: ticket
+        in: query
+        required: true
+        schema:
+          type: string
+          maxLength: 2048
+      - name: Range
+        in: header
+        schema:
+          type: string
+          maxLength: 32
+      responses:
+        '200':
+          description: Mídia autorizada; no-store
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: Mídia autorizada; no-store
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
+  /v1/social/media/{mediaId}/content:
+    get:
+      operationId: previewSocialMedia
+      summary: Prévia processada somente do autor com sessão ativa/capability30s
+      security: []
+      parameters:
+      - name: mediaId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: ticket
+        in: query
+        required: true
+        schema:
+          type: string
+          maxLength: 2048
+      - name: Range
+        in: header
+        schema:
+          type: string
+          maxLength: 32
+      responses:
+        '200':
+          description: Mídia autorizada; no-store
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: Mídia autorizada; no-store
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
 components:
   responses:
     Error:
@@ -4507,3 +5517,582 @@ components:
       additionalProperties: false
       required: []
       properties: {}
+    SocialPerson:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+          maxLength: 80
+        handle:
+          type: string
+          maxLength: 30
+          nullable: true
+      required:
+      - user_id
+      - display_name
+      - handle
+    SocialMedia:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - UPLOADING
+          - PROCESSING
+          - READY
+          - FAILED
+          - DELETED
+        content_type:
+          type: string
+          enum:
+          - image/jpeg
+          - image/png
+          - video/mp4
+          - video/quicktime
+        size_bytes:
+          type: integer
+          minimum: 1
+          maximum: 33554432
+          nullable: true
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          nullable: true
+        width:
+          type: integer
+          minimum: 1
+          maximum: 4096
+          nullable: true
+        height:
+          type: integer
+          minimum: 1
+          maximum: 4096
+          nullable: true
+        duration_ms:
+          type: integer
+          minimum: 1
+          maximum: 15000
+          nullable: true
+        failure_code:
+          type: string
+          nullable: true
+        variant:
+          type: string
+          enum:
+          - sanitized-v1
+        url:
+          type: string
+          maxLength: 2048
+        poster_url:
+          type: string
+          maxLength: 2048
+        expires_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - status
+      - content_type
+      - size_bytes
+      - sha256
+      - width
+      - height
+      - duration_ms
+      - failure_code
+      - variant
+    SocialPost:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        author:
+          $ref: '#/components/schemas/SocialPerson'
+        context:
+          type: string
+          enum:
+          - PERSONAL
+          - EXPERIENCE_PUBLIC
+        experience_id:
+          type: string
+          format: uuid
+          nullable: true
+        experience_title:
+          type: string
+          maxLength: 120
+          nullable: true
+        visibility:
+          type: string
+          enum:
+          - PUBLIC
+          - FOLLOWERS
+        body:
+          type: string
+          maxLength: 5000
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        edited_at:
+          type: string
+          format: date-time
+          nullable: true
+        version:
+          type: integer
+          minimum: 1
+        can_manage:
+          type: boolean
+        liked:
+          type: boolean
+        like_count:
+          type: integer
+          minimum: 0
+        comment_count:
+          type: integer
+          minimum: 0
+        media:
+          type: array
+          maxItems: 4
+          items:
+            $ref: '#/components/schemas/SocialMedia'
+        as_of:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+      required:
+      - id
+      - author
+      - context
+      - experience_id
+      - experience_title
+      - visibility
+      - body
+      - created_at
+      - updated_at
+      - edited_at
+      - version
+      - can_manage
+      - liked
+      - like_count
+      - comment_count
+      - media
+      - as_of
+      - valid_until
+    SocialComment:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        post_id:
+          type: string
+          format: uuid
+        author:
+          $ref: '#/components/schemas/SocialPerson'
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        created_at:
+          type: string
+          format: date-time
+        can_delete:
+          type: boolean
+      required:
+      - id
+      - post_id
+      - author
+      - body
+      - created_at
+      - can_delete
+    SocialProfile:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+          maxLength: 80
+        handle:
+          type: string
+          maxLength: 30
+          nullable: true
+        is_self:
+          type: boolean
+        following:
+          type: boolean
+        follows_you:
+          type: boolean
+        post_count:
+          type: integer
+          minimum: 0
+        follower_count:
+          type: integer
+          minimum: 0
+        following_count:
+          type: integer
+          minimum: 0
+        as_of:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+      required:
+      - user_id
+      - display_name
+      - handle
+      - is_self
+      - following
+      - follows_you
+      - post_count
+      - follower_count
+      - following_count
+      - as_of
+      - valid_until
+    SocialExperienceOption:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 120
+      required:
+      - id
+      - title
+    SocialBlockedPerson:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id:
+          type: string
+          format: uuid
+      required:
+      - user_id
+    SocialReceipt:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+      required:
+      - id
+    SocialInput:
+      type: object
+      additionalProperties: false
+      properties:
+        context:
+          type: string
+          enum:
+          - PERSONAL
+          - EXPERIENCE_PUBLIC
+        experience_id:
+          type: string
+          format: uuid
+          nullable: true
+        visibility:
+          type: string
+          enum:
+          - PUBLIC
+          - FOLLOWERS
+        body:
+          type: string
+          maxLength: 5000
+        media_ids:
+          type: array
+          maxItems: 4
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+      required:
+      - context
+      - visibility
+      - body
+      - media_ids
+    SocialEdit:
+      type: object
+      additionalProperties: false
+      properties:
+        body:
+          type: string
+          maxLength: 5000
+      required:
+      - body
+    SocialCommentInput:
+      type: object
+      additionalProperties: false
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+      required:
+      - body
+    SocialReportInput:
+      type: object
+      additionalProperties: false
+      properties:
+        target_type:
+          type: string
+          enum:
+          - USER
+          - POST
+          - COMMENT
+        target_id:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          enum:
+          - ABUSE
+          - SPAM
+          - PRIVACY
+          - ILLEGAL
+          - OTHER
+      required:
+      - target_type
+      - target_id
+      - reason
+    SocialLimits:
+      type: object
+      additionalProperties: false
+      properties:
+        body_limit:
+          type: integer
+          minimum: 1
+          maximum: 5000
+        media_limit:
+          type: integer
+          minimum: 1
+          maximum: 4
+        edit_hours:
+          type: integer
+          minimum: 1
+          maximum: 168
+        video_seconds:
+          type: integer
+          enum:
+          - 15
+      required:
+      - body_limit
+      - media_limit
+      - edit_hours
+      - video_seconds
+    SocialPostPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/SocialPost'
+        next_cursor:
+          type: string
+          maxLength: 2048
+          nullable: true
+        as_of:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+      required:
+      - items
+      - next_cursor
+      - as_of
+      - valid_until
+    SocialCommentPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/SocialComment'
+        next_cursor:
+          type: string
+          maxLength: 2048
+          nullable: true
+        as_of:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+      required:
+      - items
+      - next_cursor
+      - as_of
+      - valid_until
+    SocialPeoplePage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/SocialPerson'
+        next_cursor:
+          type: string
+          maxLength: 2048
+          nullable: true
+        as_of:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+      required:
+      - items
+      - next_cursor
+      - as_of
+      - valid_until
+    SocialBlocksPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/SocialBlockedPerson'
+        next_cursor:
+          type: string
+          maxLength: 2048
+          nullable: true
+        as_of:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+      required:
+      - items
+      - next_cursor
+      - as_of
+      - valid_until
+    SocialExperienceOptions:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/SocialExperienceOption'
+        next_cursor:
+          type: string
+          maxLength: 2048
+          nullable: true
+        as_of:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+      required:
+      - items
+      - next_cursor
+      - as_of
+      - valid_until
+    SocialAsset:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - UPLOADING
+          - PROCESSING
+          - READY
+          - FAILED
+          - DELETED
+        content_type:
+          type: string
+          enum:
+          - image/jpeg
+          - image/png
+          - video/mp4
+          - video/quicktime
+        size_bytes:
+          type: integer
+          minimum: 1
+          maximum: 33554432
+          nullable: true
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          nullable: true
+        width:
+          type: integer
+          minimum: 1
+          maximum: 4096
+          nullable: true
+        height:
+          type: integer
+          minimum: 1
+          maximum: 4096
+          nullable: true
+        duration_ms:
+          type: integer
+          minimum: 1
+          maximum: 15000
+          nullable: true
+        failure_code:
+          type: string
+          nullable: true
+        variant:
+          type: string
+          enum:
+          - sanitized-v1
+        url:
+          type: string
+          maxLength: 2048
+        poster_url:
+          type: string
+          maxLength: 2048
+        expires_at:
+          type: string
+          format: date-time
+        as_of:
+          type: string
+          format: date-time
+      required:
+      - id
+      - status
+      - content_type
+      - size_bytes
+      - sha256
+      - width
+      - height
+      - duration_ms
+      - failure_code
+      - variant
+      - as_of

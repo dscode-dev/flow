@@ -32,6 +32,7 @@ import (
 	"flow.local/backend/internal/media"
 	"flow.local/backend/internal/participation"
 	"flow.local/backend/internal/platform/httpapi"
+	"flow.local/backend/internal/social"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -79,6 +80,20 @@ func TestMain(m *testing.M) {
 	}
 	boundaryExperience := uuid.NewString()
 	if _, e = db.Exec("INSERT INTO experiences.experiences(id,creator_user_id) VALUES($1,$2)", boundaryExperience, marker); e != nil {
+		panic(e)
+	}
+	boundaryAsset := uuid.NewString()
+	if _, e = db.Exec("INSERT INTO media.flow_assets(id,experience_id,owner_user_id,idempotency_key,request_hash,content_type,size_bytes,staging_key,object_key,poster_key,expires_at) VALUES($1,$2,$3,$4,$5,'image/png',1,$6,$7,$8,now()+interval '5 minutes')", boundaryAsset, boundaryExperience, marker, uuid.NewString(), bytes.Repeat([]byte{7}, 32), "boundary/staging", "boundary/media", "boundary/poster"); e != nil {
+		panic(e)
+	}
+	if e = goose.DownTo(db, "../../../migrations", 8); e != nil {
+		panic(e)
+	}
+	var socialBoundary bool
+	if e = db.QueryRow("SELECT to_regnamespace('social') IS NULL AND EXISTS(SELECT FROM media.flow_assets WHERE id=$1) AND to_regclass('participation.members') IS NOT NULL", boundaryAsset).Scan(&socialBoundary); e != nil || !socialBoundary {
+		panic("Social rollback affected prior media/participation")
+	}
+	if e = goose.Up(db, "../../../migrations"); e != nil {
 		panic(e)
 	}
 	if e = goose.DownTo(db, "../../../migrations", 6); e != nil {
@@ -215,7 +230,10 @@ func newHarness(t *testing.T, limits ...int) *harness {
 	}
 	pc.MutationMinute = 120
 	ph := participation.NewHandler(participation.New(pool, pc), auth)
-	server := httptest.NewServer(httpapi.New(slog.New(slog.NewTextHandler(io.Discard, nil)), checker{}, 1<<20, time.Second, func() bool { return false }, auth.Register, handler.Register, ph.Register))
+	soc, _ := social.ParseConfig(func(string) string { return "" }, key)
+	soc.MutationMinute = 120
+	sh := social.NewHandler(social.New(pool, ms, soc), auth)
+	server := httptest.NewServer(httpapi.New(slog.New(slog.NewTextHandler(io.Discard, nil)), checker{}, 1<<20, time.Second, func() bool { return false }, auth.Register, handler.Register, ph.Register, sh.Register))
 	t.Cleanup(server.Close)
 	return &harness{server, es, ms}
 }

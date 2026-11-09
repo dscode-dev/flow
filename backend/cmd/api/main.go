@@ -12,6 +12,7 @@ import (
 	"flow.local/backend/internal/platform/dependencies"
 	"flow.local/backend/internal/platform/httpapi"
 	"flow.local/backend/internal/platform/telemetry"
+	"flow.local/backend/internal/social"
 	"log/slog"
 	"net/http"
 	"os"
@@ -72,7 +73,12 @@ func run(log *slog.Logger) error {
 		return err
 	}
 	participationHandler := participation.NewHandler(participation.New(deps.Postgres, participationConfig), identityHandler)
-	server := &http.Server{Addr: c.Address, Handler: httpapi.New(log, deps, c.MaxBodyBytes, c.DependencyTimeout, draining.Load, identityHandler.Register, experiencesHandler.Register, participationHandler.Register), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
+	socialConfig, err := social.ParseConfig(os.Getenv, identityConfig.HMACKey)
+	if err != nil {
+		return err
+	}
+	socialHandler := social.NewHandler(social.New(deps.Postgres, mediaService, socialConfig), identityHandler)
+	server := &http.Server{Addr: c.Address, Handler: httpapi.New(log, deps, c.MaxBodyBytes, c.DependencyTimeout, draining.Load, identityHandler.Register, experiencesHandler.Register, participationHandler.Register, socialHandler.Register), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
 	done := make(chan error, 1)
 	go func() {
 		log.Info("api starting", "address", c.Address, "environment", c.Environment)

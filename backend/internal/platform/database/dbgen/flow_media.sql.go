@@ -14,7 +14,7 @@ import (
 const claimFlowAsset = `-- name: ClaimFlowAsset :one
 UPDATE media.flow_assets SET lease_until=now()+interval '100 seconds',lease_id=$1,attempts=attempts+1
 WHERE id=(SELECT id FROM media.flow_assets WHERE status='PROCESSING' AND (lease_until IS NULL OR lease_until<now()) ORDER BY created_at,id FOR UPDATE SKIP LOCKED LIMIT 1)
-RETURNING id, experience_id, owner_user_id, idempotency_key, request_hash, content_type, size_bytes, status, staging_key, object_key, poster_key, width, height, duration_ms, verified_size, sha256, failure_code, expires_at, created_at, confirmed_at, lease_until, lease_id, attempts, processed_at, staging_cleaned_at, deleted_at
+RETURNING id, experience_id, owner_user_id, idempotency_key, request_hash, content_type, size_bytes, status, staging_key, object_key, poster_key, width, height, duration_ms, verified_size, sha256, failure_code, expires_at, created_at, confirmed_at, lease_until, lease_id, attempts, processed_at, staging_cleaned_at, deleted_at, purpose
 `
 
 func (q *Queries) ClaimFlowAsset(ctx context.Context, leaseID pgtype.UUID) (MediaFlowAsset, error) {
@@ -47,6 +47,7 @@ func (q *Queries) ClaimFlowAsset(ctx context.Context, leaseID pgtype.UUID) (Medi
 		&i.ProcessedAt,
 		&i.StagingCleanedAt,
 		&i.DeletedAt,
+		&i.Purpose,
 	)
 	return i, err
 }
@@ -71,7 +72,7 @@ func (q *Queries) DeleteFlowAsset(ctx context.Context, id pgtype.UUID) error {
 
 const deleteFlowTombstones = `-- name: DeleteFlowTombstones :exec
 DELETE FROM media.flow_assets a WHERE status='DELETED' AND staging_cleaned_at IS NOT NULL AND deleted_at<now()-interval '7 days'
-AND NOT EXISTS(SELECT FROM experiences.flow_presentations p WHERE p.image_asset_id=a.id OR p.video_asset_id=a.id)
+AND NOT EXISTS(SELECT FROM experiences.flow_presentations p WHERE p.image_asset_id=a.id OR p.video_asset_id=a.id) AND NOT EXISTS(SELECT FROM social.post_media m WHERE m.asset_id=a.id)
 `
 
 func (q *Queries) DeleteFlowTombstones(ctx context.Context) error {
@@ -96,7 +97,7 @@ func (q *Queries) FailFlowAsset(ctx context.Context, arg FailFlowAssetParams) er
 }
 
 const findFlowAssetKey = `-- name: FindFlowAssetKey :one
-SELECT id, experience_id, owner_user_id, idempotency_key, request_hash, content_type, size_bytes, status, staging_key, object_key, poster_key, width, height, duration_ms, verified_size, sha256, failure_code, expires_at, created_at, confirmed_at, lease_until, lease_id, attempts, processed_at, staging_cleaned_at, deleted_at FROM media.flow_assets WHERE owner_user_id=$1 AND idempotency_key=$2
+SELECT id, experience_id, owner_user_id, idempotency_key, request_hash, content_type, size_bytes, status, staging_key, object_key, poster_key, width, height, duration_ms, verified_size, sha256, failure_code, expires_at, created_at, confirmed_at, lease_until, lease_id, attempts, processed_at, staging_cleaned_at, deleted_at, purpose FROM media.flow_assets WHERE owner_user_id=$1 AND idempotency_key=$2
 `
 
 type FindFlowAssetKeyParams struct {
@@ -134,15 +135,17 @@ func (q *Queries) FindFlowAssetKey(ctx context.Context, arg FindFlowAssetKeyPara
 		&i.ProcessedAt,
 		&i.StagingCleanedAt,
 		&i.DeletedAt,
+		&i.Purpose,
 	)
 	return i, err
 }
 
 const flowAssetCleanupCandidates = `-- name: FlowAssetCleanupCandidates :many
-SELECT a.id, a.experience_id, a.owner_user_id, a.idempotency_key, a.request_hash, a.content_type, a.size_bytes, a.status, a.staging_key, a.object_key, a.poster_key, a.width, a.height, a.duration_ms, a.verified_size, a.sha256, a.failure_code, a.expires_at, a.created_at, a.confirmed_at, a.lease_until, a.lease_id, a.attempts, a.processed_at, a.staging_cleaned_at, a.deleted_at FROM media.flow_assets a WHERE
+SELECT a.id, a.experience_id, a.owner_user_id, a.idempotency_key, a.request_hash, a.content_type, a.size_bytes, a.status, a.staging_key, a.object_key, a.poster_key, a.width, a.height, a.duration_ms, a.verified_size, a.sha256, a.failure_code, a.expires_at, a.created_at, a.confirmed_at, a.lease_until, a.lease_id, a.attempts, a.processed_at, a.staging_cleaned_at, a.deleted_at, a.purpose FROM media.flow_assets a WHERE
  (a.expires_at<now()-interval '1 hour' AND a.staging_cleaned_at IS NULL AND a.status<>'PROCESSING') OR
  (a.created_at<now()-interval '24 hours' AND a.status NOT IN ('PROCESSING','DELETED')
- AND NOT EXISTS(SELECT FROM experiences.flow_presentations p WHERE p.image_asset_id=a.id OR p.video_asset_id=a.id))
+ AND NOT EXISTS(SELECT FROM experiences.flow_presentations p WHERE p.image_asset_id=a.id OR p.video_asset_id=a.id)
+ AND NOT EXISTS(SELECT FROM social.post_media m JOIN social.posts p ON p.id=m.post_id WHERE m.asset_id=a.id AND p.deleted_at IS NULL))
 ORDER BY a.created_at,a.id LIMIT 50 FOR UPDATE SKIP LOCKED
 `
 
@@ -182,6 +185,7 @@ func (q *Queries) FlowAssetCleanupCandidates(ctx context.Context) ([]MediaFlowAs
 			&i.ProcessedAt,
 			&i.StagingCleanedAt,
 			&i.DeletedAt,
+			&i.Purpose,
 		); err != nil {
 			return nil, err
 		}
@@ -194,14 +198,14 @@ func (q *Queries) FlowAssetCleanupCandidates(ctx context.Context) ([]MediaFlowAs
 }
 
 const flowAssetIsBound = `-- name: FlowAssetIsBound :one
-SELECT EXISTS(SELECT FROM experiences.flow_presentations WHERE image_asset_id=$1 OR video_asset_id=$1)
+SELECT (EXISTS(SELECT FROM experiences.flow_presentations WHERE image_asset_id=$1 OR video_asset_id=$1) OR EXISTS(SELECT FROM social.post_media m JOIN social.posts p ON p.id=m.post_id WHERE m.asset_id=$1 AND p.deleted_at IS NULL))::boolean
 `
 
 func (q *Queries) FlowAssetIsBound(ctx context.Context, imageAssetID pgtype.UUID) (bool, error) {
 	row := q.db.QueryRow(ctx, flowAssetIsBound, imageAssetID)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const flowAssetStagingCleaned = `-- name: FlowAssetStagingCleaned :exec
@@ -214,7 +218,7 @@ func (q *Queries) FlowAssetStagingCleaned(ctx context.Context, id pgtype.UUID) e
 }
 
 const getFlowAsset = `-- name: GetFlowAsset :one
-SELECT id, experience_id, owner_user_id, idempotency_key, request_hash, content_type, size_bytes, status, staging_key, object_key, poster_key, width, height, duration_ms, verified_size, sha256, failure_code, expires_at, created_at, confirmed_at, lease_until, lease_id, attempts, processed_at, staging_cleaned_at, deleted_at FROM media.flow_assets WHERE id=$1
+SELECT id, experience_id, owner_user_id, idempotency_key, request_hash, content_type, size_bytes, status, staging_key, object_key, poster_key, width, height, duration_ms, verified_size, sha256, failure_code, expires_at, created_at, confirmed_at, lease_until, lease_id, attempts, processed_at, staging_cleaned_at, deleted_at, purpose FROM media.flow_assets WHERE id=$1
 `
 
 func (q *Queries) GetFlowAsset(ctx context.Context, id pgtype.UUID) (MediaFlowAsset, error) {
@@ -247,6 +251,7 @@ func (q *Queries) GetFlowAsset(ctx context.Context, id pgtype.UUID) (MediaFlowAs
 		&i.ProcessedAt,
 		&i.StagingCleanedAt,
 		&i.DeletedAt,
+		&i.Purpose,
 	)
 	return i, err
 }
@@ -287,8 +292,41 @@ func (q *Queries) InsertFlowAsset(ctx context.Context, arg InsertFlowAssetParams
 	return err
 }
 
+const insertSocialAsset = `-- name: InsertSocialAsset :exec
+INSERT INTO media.flow_assets(id,owner_user_id,idempotency_key,request_hash,content_type,size_bytes,staging_key,object_key,poster_key,expires_at,purpose) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'SOCIAL')
+`
+
+type InsertSocialAssetParams struct {
+	ID             pgtype.UUID
+	OwnerUserID    pgtype.UUID
+	IdempotencyKey pgtype.UUID
+	RequestHash    []byte
+	ContentType    string
+	SizeBytes      int64
+	StagingKey     string
+	ObjectKey      string
+	PosterKey      string
+	ExpiresAt      pgtype.Timestamptz
+}
+
+func (q *Queries) InsertSocialAsset(ctx context.Context, arg InsertSocialAssetParams) error {
+	_, err := q.db.Exec(ctx, insertSocialAsset,
+		arg.ID,
+		arg.OwnerUserID,
+		arg.IdempotencyKey,
+		arg.RequestHash,
+		arg.ContentType,
+		arg.SizeBytes,
+		arg.StagingKey,
+		arg.ObjectKey,
+		arg.PosterKey,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
 const lockFlowAsset = `-- name: LockFlowAsset :one
-SELECT id, experience_id, owner_user_id, idempotency_key, request_hash, content_type, size_bytes, status, staging_key, object_key, poster_key, width, height, duration_ms, verified_size, sha256, failure_code, expires_at, created_at, confirmed_at, lease_until, lease_id, attempts, processed_at, staging_cleaned_at, deleted_at FROM media.flow_assets WHERE id=$1 FOR UPDATE
+SELECT id, experience_id, owner_user_id, idempotency_key, request_hash, content_type, size_bytes, status, staging_key, object_key, poster_key, width, height, duration_ms, verified_size, sha256, failure_code, expires_at, created_at, confirmed_at, lease_until, lease_id, attempts, processed_at, staging_cleaned_at, deleted_at, purpose FROM media.flow_assets WHERE id=$1 FOR UPDATE
 `
 
 func (q *Queries) LockFlowAsset(ctx context.Context, id pgtype.UUID) (MediaFlowAsset, error) {
@@ -321,6 +359,7 @@ func (q *Queries) LockFlowAsset(ctx context.Context, id pgtype.UUID) (MediaFlowA
 		&i.ProcessedAt,
 		&i.StagingCleanedAt,
 		&i.DeletedAt,
+		&i.Purpose,
 	)
 	return i, err
 }

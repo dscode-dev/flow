@@ -318,6 +318,7 @@ type MediaFlowAsset struct {
 	ProcessedAt      pgtype.Timestamptz
 	StagingCleanedAt pgtype.Timestamptz
 	DeletedAt        pgtype.Timestamptz
+	Purpose          string
 }
 
 type MediaRateLimit struct {
@@ -424,4 +425,94 @@ type ParticipationSetting struct {
 	Mode         string
 	Version      int64
 	UpdatedAt    pgtype.Timestamptz
+}
+
+type SocialAudit struct {
+	ID         pgtype.UUID
+	Actor      string
+	ResourceID pgtype.UUID
+	Action     string
+	RequestID  string
+	Details    []byte
+	CreatedAt  pgtype.Timestamptz
+}
+
+type SocialBlock struct {
+	BlockerID pgtype.UUID
+	BlockedID pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+type SocialComment struct {
+	ID               pgtype.UUID
+	PostID           pgtype.UUID
+	AuthorUserID     pgtype.UUID
+	Body             string
+	CreatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	ModerationStatus string
+}
+
+type SocialFollow struct {
+	FollowerID pgtype.UUID
+	FollowedID pgtype.UUID
+	CreatedAt  pgtype.Timestamptz
+}
+
+type SocialLike struct {
+	PostID    pgtype.UUID
+	UserID    pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+type SocialPost struct {
+	ID               pgtype.UUID
+	AuthorUserID     pgtype.UUID
+	ExperienceID     pgtype.UUID
+	Context          string
+	Visibility       string
+	Body             string
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	EditedAt         pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	ModerationStatus string
+	Version          int64
+}
+
+type SocialPostMedium struct {
+	PostID   pgtype.UUID
+	AssetID  pgtype.UUID
+	Position int32
+}
+
+type SocialRateLimit struct {
+	UserID      pgtype.UUID
+	WindowStart pgtype.Timestamptz
+	Count       int32
+}
+
+type SocialReceipt struct {
+	ActorUserID pgtype.UUID
+	Key         pgtype.UUID
+	RequestHash []byte
+	Response    []byte
+	ExpiresAt   pgtype.Timestamptz
+}
+
+type SocialReport struct {
+	ID             pgtype.UUID
+	ReporterUserID pgtype.UUID
+	TargetType     string
+	TargetID       pgtype.UUID
+	Reason         string
+	Status         string
+	CreatedAt      pgtype.Timestamptz
+	ResolvedAt     pgtype.Timestamptz
+}
+
+type SocialRestriction struct {
+	UserID     pgtype.UUID
+	Restricted bool
+	UpdatedAt  pgtype.Timestamptz
 }

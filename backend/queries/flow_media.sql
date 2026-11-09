@@ -23,16 +23,20 @@ WHERE id=$1 AND lease_id=$2 AND status='PROCESSING';
 SELECT a.* FROM media.flow_assets a WHERE
  (a.expires_at<now()-interval '1 hour' AND a.staging_cleaned_at IS NULL AND a.status<>'PROCESSING') OR
  (a.created_at<now()-interval '24 hours' AND a.status NOT IN ('PROCESSING','DELETED')
- AND NOT EXISTS(SELECT FROM experiences.flow_presentations p WHERE p.image_asset_id=a.id OR p.video_asset_id=a.id))
+ AND NOT EXISTS(SELECT FROM experiences.flow_presentations p WHERE p.image_asset_id=a.id OR p.video_asset_id=a.id)
+ AND NOT EXISTS(SELECT FROM social.post_media m JOIN social.posts p ON p.id=m.post_id WHERE m.asset_id=a.id AND p.deleted_at IS NULL))
 ORDER BY a.created_at,a.id LIMIT 50 FOR UPDATE SKIP LOCKED;
 -- name: FlowAssetStagingCleaned :exec
 UPDATE media.flow_assets SET staging_cleaned_at=now() WHERE id=$1;
 -- name: FlowAssetIsBound :one
-SELECT EXISTS(SELECT FROM experiences.flow_presentations WHERE image_asset_id=$1 OR video_asset_id=$1);
+SELECT (EXISTS(SELECT FROM experiences.flow_presentations WHERE image_asset_id=$1 OR video_asset_id=$1) OR EXISTS(SELECT FROM social.post_media m JOIN social.posts p ON p.id=m.post_id WHERE m.asset_id=$1 AND p.deleted_at IS NULL))::boolean;
 -- name: DeleteFlowAsset :exec
 UPDATE media.flow_assets SET status='DELETED',deleted_at=now() WHERE id=$1;
 -- name: DeleteFlowTombstones :exec
 DELETE FROM media.flow_assets a WHERE status='DELETED' AND staging_cleaned_at IS NOT NULL AND deleted_at<now()-interval '7 days'
-AND NOT EXISTS(SELECT FROM experiences.flow_presentations p WHERE p.image_asset_id=a.id OR p.video_asset_id=a.id);
+AND NOT EXISTS(SELECT FROM experiences.flow_presentations p WHERE p.image_asset_id=a.id OR p.video_asset_id=a.id) AND NOT EXISTS(SELECT FROM social.post_media m WHERE m.asset_id=a.id);
 -- name: CleanupFlowAudit :exec
 DELETE FROM experiences.flow_audit WHERE created_at<now()-interval '180 days';
+
+-- name: InsertSocialAsset :exec
+INSERT INTO media.flow_assets(id,owner_user_id,idempotency_key,request_hash,content_type,size_bytes,staging_key,object_key,poster_key,expires_at,purpose) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'SOCIAL');
