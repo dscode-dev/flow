@@ -2,7 +2,8 @@
 -- NOT MATERIALIZED allows each bounded branch to use the existing agenda,
 -- category, GiST and partial recency indexes. One snapshot/round trip, no N+1.
 WITH eligible AS NOT MATERIALIZED (
- SELECT * FROM experiences.discovery WHERE ends_at>sqlc.arg(as_of)::timestamptz
+ SELECT * FROM experiences.discovery d WHERE ends_at>sqlc.arg(as_of)::timestamptz
+ AND NOT EXISTS(SELECT FROM participation.members b WHERE b.experience_id=d.id AND b.user_id=sqlc.arg(viewer)::uuid AND b.blocked)
 ), candidates AS (
  (SELECT 'highlights'::text AS section, d.document, d.category_id, d.starts_at, d.created_at, d.id, 0::float8 AS distance_m
  FROM eligible d WHERE d.starts_at>sqlc.arg(as_of)

@@ -117,7 +117,7 @@ func (s *Service) List(ctx context.Context, session *identity.Session, own bool,
 	if own {
 		rows, e = q.ListOwnExperiences(ctx, dbgen.ListOwnExperiencesParams{Owner: id(session.UserID), StatusFilter: f.Status, BeforeTime: ts(c.Time), BeforeID: id(c.ID), PageLimit: f.Limit + 1})
 	} else {
-		rows, e = q.DiscoverExperiences(ctx, dbgen.DiscoverExperiencesParams{AsOf: ts(now), CategoryFilter: f.Category, PhaseFilter: f.Phase, AfterTime: ts(c.Time), AfterID: id(c.ID), Nearby: f.Nearby, Latitude: f.Latitude, Longitude: f.Longitude, RadiusM: f.RadiusM, PageLimit: f.Limit + 1})
+		rows, e = q.DiscoverExperiences(ctx, dbgen.DiscoverExperiencesParams{Viewer: id(session.UserID), AsOf: ts(now), CategoryFilter: f.Category, PhaseFilter: f.Phase, AfterTime: ts(c.Time), AfterID: id(c.ID), Nearby: f.Nearby, Latitude: f.Latitude, Longitude: f.Longitude, RadiusM: f.RadiusM, PageLimit: f.Limit + 1})
 	}
 	if e != nil {
 		return out, e

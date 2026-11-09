@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Flow API
-  version: 1.4.0
+  version: 1.5.0
   description: 'Identity por PHONE, GOOGLE e APPLE; Experiences e capas S3 verificadas. Credenciais opacas Flow,
     sem senha. Provedores/storage sem configuração retornam 503; nenhuma homologação externa é presumida.'
 servers:
@@ -1920,6 +1920,916 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/EmptyTransition'
+  /v1/experiences/{experienceId}/participation:
+    get:
+      operationId: getParticipationSummary
+      summary: Situação e ações autoritativas da própria participação
+      description: Interesse é independente do status e não reserva vaga. Criador organiza sem ocupar vaga. PRIVATE
+        exige convite pendente válido ou confirmação; bloqueio prevalece. CONFIRMED/check-in não comprovam pagamento
+        ou ingresso externo. Revalidar no máximo em60s, em resume e após mutações.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationSummary'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /v1/experiences/{experienceId}/participation-settings:
+    get:
+      operationId: getParticipationSettings
+      summary: Modalidade e capacidade, somente criador
+      description: ETag composto de versão da configuração e Experience. Capacidade null é ilimitada; reduzir abaixo
+        de confirmações retorna409. Alterar modalidade não desfaz confirmações/solicitações. Atributo continua pertencendo
+        à Experience; não editar capacidade publicada pelo PUT geral.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationSettings'
+          headers:
+            ETag:
+              schema:
+                type: string
+                pattern: ^"[1-9][0-9]*-[1-9][0-9]*"$
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: putParticipationSettings
+      summary: Modalidade e capacidade, somente criador
+      description: ETag composto de versão da configuração e Experience. Capacidade null é ilimitada; reduzir abaixo
+        de confirmações retorna409. Alterar modalidade não desfaz confirmações/solicitações. Atributo continua pertencendo
+        à Experience; não editar capacidade publicada pelo PUT geral.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationSettings'
+          headers:
+            ETag:
+              schema:
+                type: string
+                pattern: ^"[1-9][0-9]*-[1-9][0-9]*"$
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^"[1-9][0-9]*-[1-9][0-9]*"$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationSettingsInput'
+  /v1/experiences/{experienceId}/interest:
+    put:
+      operationId: markExperienceInterest
+      summary: Marcar/remover interesse sem reservar vaga
+      description: ''
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationSummary'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
+          o estado atual após operações ambíguas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+    delete:
+      operationId: removeExperienceInterest
+      summary: Marcar/remover interesse sem reservar vaga
+      description: ''
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationSummary'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
+          o estado atual após operações ambíguas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+  /v1/experiences/{experienceId}/participation/confirm:
+    post:
+      operationId: confirmParticipation
+      summary: Confirmação direta na modalidade FREE
+      description: 'Transação PostgreSQL com lock da Experience. CONFIRMED consome vaga; repetir a mesma intenção
+        não duplica fatos. DECLINED/REMOVED não permitem nova entrada autônoma: organizador deve convidar explicitamente.
+        Cancelamento preserva interesse e revoga código/check-in. Evento encerrado/cancelado/moderado impede novas
+        entradas.'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationSummary'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
+          o estado atual após operações ambíguas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+  /v1/experiences/{experienceId}/participation/request:
+    post:
+      operationId: requestParticipation
+      summary: Solicitação PENDING na modalidade APPROVAL
+      description: 'Transação PostgreSQL com lock da Experience. CONFIRMED consome vaga; repetir a mesma intenção
+        não duplica fatos. DECLINED/REMOVED não permitem nova entrada autônoma: organizador deve convidar explicitamente.
+        Cancelamento preserva interesse e revoga código/check-in. Evento encerrado/cancelado/moderado impede novas
+        entradas.'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationSummary'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
+          o estado atual após operações ambíguas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+  /v1/experiences/{experienceId}/participation/cancel:
+    post:
+      operationId: cancelParticipation
+      summary: Cancela PENDING/CONFIRMED e libera a vaga
+      description: 'Transação PostgreSQL com lock da Experience. CONFIRMED consome vaga; repetir a mesma intenção
+        não duplica fatos. DECLINED/REMOVED não permitem nova entrada autônoma: organizador deve convidar explicitamente.
+        Cancelamento preserva interesse e revoga código/check-in. Evento encerrado/cancelado/moderado impede novas
+        entradas.'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationSummary'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
+          o estado atual após operações ambíguas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+  /v1/experiences/{experienceId}/participants:
+    get:
+      operationId: listParticipationParticipants
+      summary: Lista paginada, exclusivamente criador
+      description: ''
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationMemberPage'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 2048
+      - name: state
+        in: query
+        schema:
+          type: string
+          enum:
+          - NONE
+          - PENDING
+          - CONFIRMED
+          - DECLINED
+          - CANCELLED
+          - REMOVED
+  /v1/experiences/{experienceId}/invitations:
+    get:
+      operationId: listParticipationInvitations
+      summary: Lista paginada, exclusivamente criador
+      description: ''
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationInvitationPage'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 2048
+    post:
+      operationId: createParticipationInvitation
+      summary: Convida conta existente por UUID interno ou handle exato
+      description: Somente organizador; uma pendência por Experience/destinatário, sem reserva de vaga. Resposta
+        uniforme invitation_unavailable para alvo inexistente/inativo/bloqueado/inelegível. Sem pesquisa de contatos.
+        Expiração default72h,1..168h, limitada ao fim. Novo convite após terminal/expirado recebe novo ID; histórico
+        fica em auditoria.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationInvitation'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
+          o estado atual após operações ambíguas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationInvitationInput'
+  /v1/experiences/{experienceId}/participants/{userId}/approve:
+    post:
+      operationId: approveExperienceParticipant
+      summary: 'Organizador: approve'
+      description: approve somente PENDING, verifica última vaga atomicamente e preserva PENDING em409. remove revoga
+        acesso derivado/check-in/convite. block é contextual à Experience e impede caminhos alternativos. unblock
+        não restaura participação ou convite. Criador não aplica estas ações a si próprio.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationMember'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
+          o estado atual após operações ambíguas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+  /v1/experiences/{experienceId}/participants/{userId}/decline:
+    post:
+      operationId: declineExperienceParticipant
+      summary: 'Organizador: decline'
+      description: approve somente PENDING, verifica última vaga atomicamente e preserva PENDING em409. remove revoga
+        acesso derivado/check-in/convite. block é contextual à Experience e impede caminhos alternativos. unblock
+        não restaura participação ou convite. Criador não aplica estas ações a si próprio.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationMember'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
+          o estado atual após operações ambíguas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+  /v1/experiences/{experienceId}/participants/{userId}/remove:
+    post:
+      operationId: removeExperienceParticipant
+      summary: 'Organizador: remove'
+      description: approve somente PENDING, verifica última vaga atomicamente e preserva PENDING em409. remove revoga
+        acesso derivado/check-in/convite. block é contextual à Experience e impede caminhos alternativos. unblock
+        não restaura participação ou convite. Criador não aplica estas ações a si próprio.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationMember'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
+          o estado atual após operações ambíguas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+  /v1/experiences/{experienceId}/participants/{userId}/block:
+    post:
+      operationId: blockExperienceParticipant
+      summary: 'Organizador: block'
+      description: approve somente PENDING, verifica última vaga atomicamente e preserva PENDING em409. remove revoga
+        acesso derivado/check-in/convite. block é contextual à Experience e impede caminhos alternativos. unblock
+        não restaura participação ou convite. Criador não aplica estas ações a si próprio.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationMember'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
+          o estado atual após operações ambíguas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+  /v1/experiences/{experienceId}/participants/{userId}/unblock:
+    post:
+      operationId: unblockExperienceParticipant
+      summary: 'Organizador: unblock'
+      description: approve somente PENDING, verifica última vaga atomicamente e preserva PENDING em409. remove revoga
+        acesso derivado/check-in/convite. block é contextual à Experience e impede caminhos alternativos. unblock
+        não restaura participação ou convite. Criador não aplica estas ações a si próprio.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationMember'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
+          o estado atual após operações ambíguas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+  /v1/invitations/{invitationId}/accept:
+    post:
+      operationId: acceptParticipationInvitation
+      summary: 'Convite: accept'
+      description: Aceitar/recusar é exclusivo do destinatário; revogar exclusivo do organizador. Somente PENDING
+        válido permite aceitar, sujeito a capacidade. Revogar convite aceito exige remover a participação pelo comando
+        específico. Expirado ou acesso privado revogado não concede detalhes. Não transfere titularidade.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationInvitation'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: invitationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
+          o estado atual após operações ambíguas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+  /v1/invitations/{invitationId}/decline:
+    post:
+      operationId: declineParticipationInvitation
+      summary: 'Convite: decline'
+      description: Aceitar/recusar é exclusivo do destinatário; revogar exclusivo do organizador. Somente PENDING
+        válido permite aceitar, sujeito a capacidade. Revogar convite aceito exige remover a participação pelo comando
+        específico. Expirado ou acesso privado revogado não concede detalhes. Não transfere titularidade.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationInvitation'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: invitationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
+          o estado atual após operações ambíguas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+  /v1/invitations/{invitationId}/revoke:
+    post:
+      operationId: revokeParticipationInvitation
+      summary: 'Convite: revoke'
+      description: Aceitar/recusar é exclusivo do destinatário; revogar exclusivo do organizador. Somente PENDING
+        válido permite aceitar, sujeito a capacidade. Revogar convite aceito exige remover a participação pelo comando
+        específico. Expirado ou acesso privado revogado não concede detalhes. Não transfere titularidade.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationInvitation'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: invitationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
+          o estado atual após operações ambíguas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+  /v1/experiences/{experienceId}/check-in-credential:
+    post:
+      operationId: issueCheckinCredential
+      summary: Participante confirmado emite código efêmero para mostrar ao organizador
+      description: Janela default30min antes do início até fim, configurável. Código aleatório80bits, HMAC no banco,
+        TTL default120s/configurável30..300s, vinculado à sessão emissora. Cada emissão invalida a anterior. Não
+        repetir automaticamente após timeout; renovar explicitamente. Não é prova de ingresso externo ou garantia
+        criptográfica de localização física.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinCredential'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+  /v1/experiences/{experienceId}/check-ins/validate:
+    post:
+      operationId: validateParticipantCheckin
+      summary: Organizador valida código mostrado pelo participante no local
+      description: Apenas dono da Experience e participação CONFIRMED elegível; valida código/expiração/sessão/conta/janela.
+        Uso único por credencial e um registro por pessoa/Experience. Retry com a mesma chave retorna recibo; novo
+        comando com código consumido retorna409. Sem câmera/GPS.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationCheckin'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
+          o estado atual após operações ambíguas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckinCodeInput'
+  /v1/experiences/{experienceId}/check-ins/{userId}/revoke:
+    post:
+      operationId: revokeParticipantCheckin
+      summary: Organizador revoga presença e credencial atual
+      description: Histórico auditado. Registro permanece único; nova credencial elegível poderá registrar presença
+        novamente com incremento de versão. Cancelar/remover participação também revoga a presença.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipationCheckin'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
+          o estado atual após operações ambíguas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationEmptyInput'
+  /v1/me/agenda:
+    get:
+      operationId: getMyAgenda
+      summary: Agenda pessoal por seção com dados atuais e paginação
+      description: Seções upcoming/interests/pending/invitations/history. Ordenação cronológica UTC/início/id; Experience
+        mantém timezone IANA. Mudanças de status/horário refletidas na próxima consulta. Acesso privado revogado
+        retorna apenas referência pessoal indisponível, sem local/título/horário protegidos; listas nominais de
+        terceiros não são incluídas. Cursor HMAC por conta/seção/limite expira em15min. Sem integração calendário
+        externo.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Operação concluída; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgendaPage'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+      - name: section
+        in: query
+        schema:
+          type: string
+          enum:
+          - upcoming
+          - interests
+          - pending
+          - invitations
+          - history
+          default: upcoming
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 2048
 components:
   responses:
     Error:
@@ -3005,3 +3915,595 @@ components:
           writeOnly: true
           description: JWS de notificação Apple. Assinatura, issuer, audience, iat, jti e eventos verificados; nenhum
             segredo compartilhado no URL.
+    ParticipationSettings:
+      type: object
+      additionalProperties: false
+      required:
+      - mode
+      - capacity
+      - confirmed_count
+      - version
+      - experience_version
+      - visibility
+      - can_manage
+      - can_configure
+      properties:
+        mode:
+          type: string
+          enum:
+          - FREE
+          - APPROVAL
+          - INVITE
+        capacity:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+          nullable: true
+        confirmed_count:
+          type: integer
+          minimum: 0
+        version:
+          type: integer
+          minimum: 1
+        experience_version:
+          type: integer
+          minimum: 1
+        visibility:
+          type: string
+          enum:
+          - PUBLIC
+          - UNLISTED
+          - PRIVATE
+        can_manage:
+          type: boolean
+        can_configure:
+          type: boolean
+    ParticipationSettingsInput:
+      type: object
+      additionalProperties: false
+      required:
+      - mode
+      - capacity
+      properties:
+        mode:
+          type: string
+          enum:
+          - FREE
+          - APPROVAL
+          - INVITE
+        capacity:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+          nullable: true
+    ParticipationInvitation:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - experience_id
+      - invitee_user_id
+      - state
+      - expires_at
+      - version
+      - expired
+      properties:
+        id:
+          type: string
+          format: uuid
+        experience_id:
+          type: string
+          format: uuid
+        invitee_user_id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum:
+          - PENDING
+          - ACCEPTED
+          - DECLINED
+          - REVOKED
+        expires_at:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          minimum: 1
+        expired:
+          type: boolean
+    ParticipationSummary:
+      type: object
+      additionalProperties: false
+      required:
+      - experience_id
+      - mode
+      - state
+      - interested
+      - version
+      - is_owner
+      - eligible
+      - capacity
+      - confirmed_count
+      - remaining
+      - actions
+      - checked_in
+      - checkin_open
+      - checked_at
+      - invitation
+      - external_ticket
+      - as_of
+      - valid_until
+      properties:
+        experience_id:
+          type: string
+          format: uuid
+        mode:
+          type: string
+          enum:
+          - FREE
+          - APPROVAL
+          - INVITE
+        state:
+          type: string
+          enum:
+          - NONE
+          - PENDING
+          - CONFIRMED
+          - DECLINED
+          - CANCELLED
+          - REMOVED
+        interested:
+          type: boolean
+        version:
+          type: integer
+          minimum: 0
+        is_owner:
+          type: boolean
+        eligible:
+          type: boolean
+        capacity:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+          nullable: true
+        confirmed_count:
+          type: integer
+          minimum: 0
+        remaining:
+          type: integer
+          minimum: 0
+          nullable: true
+        actions:
+          type: array
+          maxItems: 8
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+            - manage
+            - interest
+            - uninterest
+            - confirm
+            - request
+            - cancel
+            - accept_invitation
+            - decline_invitation
+            - checkin_credential
+        checkin_open:
+          type: boolean
+        checked_in:
+          type: boolean
+        checked_at:
+          type: string
+          format: date-time
+          nullable: true
+        invitation:
+          type: object
+          additionalProperties: false
+          required:
+          - id
+          - experience_id
+          - invitee_user_id
+          - state
+          - expires_at
+          - version
+          - expired
+          properties:
+            id:
+              type: string
+              format: uuid
+            experience_id:
+              type: string
+              format: uuid
+            invitee_user_id:
+              type: string
+              format: uuid
+            state:
+              type: string
+              enum:
+              - PENDING
+              - ACCEPTED
+              - DECLINED
+              - REVOKED
+            expires_at:
+              type: string
+              format: date-time
+            version:
+              type: integer
+              minimum: 1
+            expired:
+              type: boolean
+          nullable: true
+        external_ticket:
+          type: boolean
+        as_of:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+    ParticipationMember:
+      type: object
+      additionalProperties: false
+      required:
+      - user_id
+      - display_name
+      - handle
+      - state
+      - interested
+      - blocked
+      - version
+      - updated_at
+      - checked_in
+      - checked_at
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+          maxLength: 80
+        handle:
+          type: string
+          maxLength: 30
+          nullable: true
+        state:
+          type: string
+          enum:
+          - NONE
+          - PENDING
+          - CONFIRMED
+          - DECLINED
+          - CANCELLED
+          - REMOVED
+        interested:
+          type: boolean
+        blocked:
+          type: boolean
+        version:
+          type: integer
+          minimum: 1
+        updated_at:
+          type: string
+          format: date-time
+        checked_in:
+          type: boolean
+        checked_at:
+          type: string
+          format: date-time
+          nullable: true
+    ParticipationInvitationInput:
+      type: object
+      additionalProperties: false
+      required: []
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        handle:
+          type: string
+          minLength: 3
+          maxLength: 31
+        expires_hours:
+          type: integer
+          minimum: 1
+          maximum: 168
+      oneOf:
+      - required:
+        - user_id
+        not:
+          required:
+          - handle
+      - required:
+        - handle
+        not:
+          required:
+          - user_id
+    ParticipationSentInvitation:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - experience_id
+      - invitee_user_id
+      - state
+      - expires_at
+      - version
+      - expired
+      - display_name
+      - handle
+      properties:
+        id:
+          type: string
+          format: uuid
+        experience_id:
+          type: string
+          format: uuid
+        invitee_user_id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum:
+          - PENDING
+          - ACCEPTED
+          - DECLINED
+          - REVOKED
+        expires_at:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          minimum: 1
+        expired:
+          type: boolean
+        display_name:
+          type: string
+          maxLength: 80
+        handle:
+          type: string
+          maxLength: 30
+          nullable: true
+    CheckinCredential:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - expires_at
+      - as_of
+      properties:
+        code:
+          type: string
+          pattern: ^[A-Z2-7]{16}$
+          description: Segredo efêmero exibido somente nesta resposta; não persistir/logar/copiar para analytics.
+        expires_at:
+          type: string
+          format: date-time
+        as_of:
+          type: string
+          format: date-time
+    CheckinCodeInput:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      properties:
+        code:
+          type: string
+          minLength: 16
+          maxLength: 32
+          writeOnly: true
+    ParticipationCheckin:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - experience_id
+      - user_id
+      - checked_at
+      - revoked_at
+      - version
+      - display_name
+      - handle
+      properties:
+        id:
+          type: string
+          format: uuid
+        experience_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        checked_at:
+          type: string
+          format: date-time
+        revoked_at:
+          type: string
+          format: date-time
+          nullable: true
+        version:
+          type: integer
+          minimum: 1
+        display_name:
+          type: string
+          maxLength: 80
+        handle:
+          type: string
+          nullable: true
+          maxLength: 30
+    AgendaItem:
+      type: object
+      additionalProperties: false
+      required:
+      - experience_id
+      - title
+      - starts_at
+      - ends_at
+      - timezone
+      - venue_name
+      - experience_status
+      - accessible
+      - state
+      - interested
+      - effective_state
+      - invitation_id
+      - invitation_state
+      - invitation_expires_at
+      - checked_in
+      - external_ticket
+      properties:
+        experience_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 120
+        starts_at:
+          type: string
+          format: date-time
+          nullable: true
+        ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        timezone:
+          type: string
+          maxLength: 100
+          nullable: true
+        venue_name:
+          type: string
+          maxLength: 160
+        experience_status:
+          type: string
+          enum:
+          - DRAFT
+          - PUBLISHED
+          - CANCELLED
+          - ARCHIVED
+          - UNAVAILABLE
+        accessible:
+          type: boolean
+        state:
+          type: string
+          enum:
+          - NONE
+          - PENDING
+          - CONFIRMED
+          - DECLINED
+          - CANCELLED
+          - REMOVED
+        interested:
+          type: boolean
+        effective_state:
+          type: string
+          enum:
+          - NONE
+          - PENDING
+          - CONFIRMED
+          - DECLINED
+          - CANCELLED
+          - REMOVED
+          - UNAVAILABLE
+          - EXPERIENCE_DRAFT
+          - EXPERIENCE_CANCELLED
+          - EXPERIENCE_ARCHIVED
+          - ENDED
+        invitation_id:
+          type: string
+          format: uuid
+          nullable: true
+        invitation_state:
+          type: string
+          enum:
+          - PENDING
+          - ACCEPTED
+          - DECLINED
+          - REVOKED
+          nullable: true
+        invitation_expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        checked_in:
+          type: boolean
+        external_ticket:
+          type: boolean
+    AgendaPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      - as_of
+      - valid_until
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/AgendaItem'
+        next_cursor:
+          type: string
+          maxLength: 2048
+          nullable: true
+        as_of:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+    ParticipationMemberPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      - as_of
+      - valid_until
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/ParticipationMember'
+        next_cursor:
+          type: string
+          maxLength: 2048
+          nullable: true
+        as_of:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+    ParticipationInvitationPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      - as_of
+      - valid_until
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/ParticipationSentInvitation'
+        next_cursor:
+          type: string
+          maxLength: 2048
+          nullable: true
+        as_of:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+    ParticipationEmptyInput:
+      type: object
+      additionalProperties: false
+      required: []
+      properties: {}

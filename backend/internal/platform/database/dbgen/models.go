@@ -346,3 +346,82 @@ type MediaUpload struct {
 	StagingCleanedAt pgtype.Timestamptz
 	DeletedAt        pgtype.Timestamptz
 }
+
+type ParticipationAudit struct {
+	ID              pgtype.UUID
+	ExperienceID    pgtype.UUID
+	ActorUserID     pgtype.UUID
+	SubjectUserID   pgtype.UUID
+	Action          string
+	ResourceVersion int64
+	RequestID       string
+	Details         []byte
+	CreatedAt       pgtype.Timestamptz
+}
+
+type ParticipationCheckin struct {
+	ID           pgtype.UUID
+	ExperienceID pgtype.UUID
+	UserID       pgtype.UUID
+	CheckedAt    pgtype.Timestamptz
+	CheckedBy    pgtype.UUID
+	RevokedAt    pgtype.Timestamptz
+	RevokedBy    pgtype.UUID
+	Version      int64
+}
+
+type ParticipationCheckinCredential struct {
+	ExperienceID pgtype.UUID
+	UserID       pgtype.UUID
+	ID           pgtype.UUID
+	SessionID    pgtype.UUID
+	CodeHash     []byte
+	ExpiresAt    pgtype.Timestamptz
+	UsedAt       pgtype.Timestamptz
+}
+
+type ParticipationIdempotency struct {
+	ActorUserID pgtype.UUID
+	Key         pgtype.UUID
+	RequestHash []byte
+	Response    []byte
+	CreatedAt   pgtype.Timestamptz
+	ExpiresAt   pgtype.Timestamptz
+}
+
+type ParticipationInvitation struct {
+	ID            pgtype.UUID
+	ExperienceID  pgtype.UUID
+	InviteeUserID pgtype.UUID
+	SenderUserID  pgtype.UUID
+	State         string
+	ExpiresAt     pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Version       int64
+}
+
+type ParticipationMember struct {
+	ID           pgtype.UUID
+	ExperienceID pgtype.UUID
+	UserID       pgtype.UUID
+	Interested   bool
+	State        string
+	Blocked      bool
+	Version      int64
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+}
+
+type ParticipationRateLimit struct {
+	UserID      pgtype.UUID
+	WindowStart pgtype.Timestamptz
+	Count       int32
+}
+
+type ParticipationSetting struct {
+	ExperienceID pgtype.UUID
+	Mode         string
+	Version      int64
+	UpdatedAt    pgtype.Timestamptz
+}

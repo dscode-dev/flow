@@ -121,7 +121,7 @@ func (s *Service) Radar(ctx context.Context, session *identity.Session, f RadarF
 	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	raw, err := dbgen.New(s.pool).RadarExperiences(ctx, dbgen.RadarExperiencesParams{
+	raw, err := dbgen.New(s.pool).RadarExperiences(ctx, dbgen.RadarExperiencesParams{Viewer: id(session.UserID),
 		AsOf: ts(now), West: f.West, South: f.South, East: f.East, North: f.North, Crosses: f.West > f.East,
 		CategoryFilter: f.Category, PhaseFilter: f.Phase, Period: f.From != nil, FromTime: ts(from), UntilTime: ts(until),
 		Nearby: f.Center != nil, Latitude: center.Latitude, Longitude: center.Longitude, RadiusM: f.RadiusM, ResultLimit: int32(f.Limit + 1),

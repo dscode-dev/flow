@@ -22,18 +22,20 @@ SELECT jsonb_build_object(
 )::jsonb AS marker
 FROM experiences.discovery d JOIN experiences.categories c ON c.id=d.category_id
 WHERE d.ends_at>$1::timestamptz
- AND ((NOT $2::boolean AND ST_Intersects(d.point::geometry,ST_MakeEnvelope($3::float8,$4::float8,$5::float8,$6::float8,4326)))
- OR ($2 AND (ST_Intersects(d.point::geometry,ST_MakeEnvelope($3,$4,180,$6,4326))
- OR ST_Intersects(d.point::geometry,ST_MakeEnvelope(-180,$4,$5,$6,4326)))))
- AND ($7::text='' OR d.category_id=$7)
- AND ($8::text='' OR ($8='LIVE' AND d.starts_at<=$1) OR ($8='UPCOMING' AND d.starts_at>$1))
- AND (NOT $9::boolean OR (d.starts_at<$10::timestamptz AND d.ends_at>$11::timestamptz))
- AND (NOT $12::boolean OR ST_DWithin(d.point,ST_SetSRID(ST_MakePoint($13::float8,$14::float8),4326)::geography,$15::float8))
-ORDER BY d.starts_at,d.id LIMIT $16
+ AND NOT EXISTS(SELECT FROM participation.members b WHERE b.experience_id=d.id AND b.user_id=$2::uuid AND b.blocked)
+ AND ((NOT $3::boolean AND ST_Intersects(d.point::geometry,ST_MakeEnvelope($4::float8,$5::float8,$6::float8,$7::float8,4326)))
+ OR ($3 AND (ST_Intersects(d.point::geometry,ST_MakeEnvelope($4,$5,180,$7,4326))
+ OR ST_Intersects(d.point::geometry,ST_MakeEnvelope(-180,$5,$6,$7,4326)))))
+ AND ($8::text='' OR d.category_id=$8)
+ AND ($9::text='' OR ($9='LIVE' AND d.starts_at<=$1) OR ($9='UPCOMING' AND d.starts_at>$1))
+ AND (NOT $10::boolean OR (d.starts_at<$11::timestamptz AND d.ends_at>$12::timestamptz))
+ AND (NOT $13::boolean OR ST_DWithin(d.point,ST_SetSRID(ST_MakePoint($14::float8,$15::float8),4326)::geography,$16::float8))
+ORDER BY d.starts_at,d.id LIMIT $17
 `
 
 type RadarExperiencesParams struct {
 	AsOf           pgtype.Timestamptz
+	Viewer         pgtype.UUID
 	Crosses        bool
 	West           float64
 	South          float64
@@ -54,6 +56,7 @@ type RadarExperiencesParams struct {
 func (q *Queries) RadarExperiences(ctx context.Context, arg RadarExperiencesParams) ([][]byte, error) {
 	rows, err := q.db.Query(ctx, radarExperiences,
 		arg.AsOf,
+		arg.Viewer,
 		arg.Crosses,
 		arg.West,
 		arg.South,

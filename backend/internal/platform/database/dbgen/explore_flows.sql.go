@@ -15,17 +15,19 @@ const exploreExperiences = `-- name: ExploreExperiences :many
 SELECT d.document::jsonb AS document FROM experiences.discovery d
 JOIN experiences.experiences e ON e.id=d.id
 WHERE d.ends_at>$1::timestamptz
-AND ($2::text='' OR e.search_vector @@ websearch_to_tsquery('portuguese',experiences.search_normalize($2)))
-AND ($3::text='' OR d.category_id=$3)
-AND ($4::text='' OR ($4='LIVE' AND d.starts_at<=$1) OR ($4='UPCOMING' AND d.starts_at>$1))
-AND (NOT $5::boolean OR (d.starts_at<$6::timestamptz AND d.ends_at>$7::timestamptz))
-AND (NOT $8::boolean OR ST_DWithin(d.point,ST_SetSRID(ST_MakePoint($9::float8,$10::float8),4326)::geography,$11::float8))
-AND (d.starts_at,d.id)>($12::timestamptz,$13::uuid)
-ORDER BY d.starts_at,d.id LIMIT $14
+AND NOT EXISTS(SELECT FROM participation.members b WHERE b.experience_id=d.id AND b.user_id=$2::uuid AND b.blocked)
+AND ($3::text='' OR e.search_vector @@ websearch_to_tsquery('portuguese',experiences.search_normalize($3)))
+AND ($4::text='' OR d.category_id=$4)
+AND ($5::text='' OR ($5='LIVE' AND d.starts_at<=$1) OR ($5='UPCOMING' AND d.starts_at>$1))
+AND (NOT $6::boolean OR (d.starts_at<$7::timestamptz AND d.ends_at>$8::timestamptz))
+AND (NOT $9::boolean OR ST_DWithin(d.point,ST_SetSRID(ST_MakePoint($10::float8,$11::float8),4326)::geography,$12::float8))
+AND (d.starts_at,d.id)>($13::timestamptz,$14::uuid)
+ORDER BY d.starts_at,d.id LIMIT $15
 `
 
 type ExploreExperiencesParams struct {
 	AsOf           pgtype.Timestamptz
+	Viewer         pgtype.UUID
 	Search         string
 	CategoryFilter string
 	PhaseFilter    string
@@ -44,6 +46,7 @@ type ExploreExperiencesParams struct {
 func (q *Queries) ExploreExperiences(ctx context.Context, arg ExploreExperiencesParams) ([][]byte, error) {
 	rows, err := q.db.Query(ctx, exploreExperiences,
 		arg.AsOf,
+		arg.Viewer,
 		arg.Search,
 		arg.CategoryFilter,
 		arg.PhaseFilter,
@@ -94,14 +97,16 @@ func (q *Queries) FlowMediaSessionActive(ctx context.Context, arg FlowMediaSessi
 }
 
 const getEligibleFlow = `-- name: GetEligibleFlow :one
-SELECT document::jsonb AS document,presentation_version,image_kind,image_asset_id,video_asset_id,duration_ms,media_width,media_height
-FROM experiences.flow_discovery WHERE id=$1 AND ends_at>$2 AND starts_at<=$3
+SELECT f.document::jsonb AS document,f.presentation_version,f.image_kind,f.image_asset_id,f.video_asset_id,f.duration_ms,f.media_width,f.media_height
+FROM experiences.flow_discovery f WHERE f.id=$1 AND f.ends_at>$2 AND f.starts_at<=$3
+AND NOT EXISTS(SELECT FROM participation.members b WHERE b.experience_id=f.id AND b.user_id=$4::uuid AND b.blocked)
 `
 
 type GetEligibleFlowParams struct {
-	ID       pgtype.UUID
-	EndsAt   pgtype.Timestamptz
-	StartsAt pgtype.Timestamptz
+	ExperienceID pgtype.UUID
+	AsOf         pgtype.Timestamptz
+	WindowEnd    pgtype.Timestamptz
+	Viewer       pgtype.UUID
 }
 
 type GetEligibleFlowRow struct {
@@ -116,7 +121,12 @@ type GetEligibleFlowRow struct {
 }
 
 func (q *Queries) GetEligibleFlow(ctx context.Context, arg GetEligibleFlowParams) (GetEligibleFlowRow, error) {
-	row := q.db.QueryRow(ctx, getEligibleFlow, arg.ID, arg.EndsAt, arg.StartsAt)
+	row := q.db.QueryRow(ctx, getEligibleFlow,
+		arg.ExperienceID,
+		arg.AsOf,
+		arg.WindowEnd,
+		arg.Viewer,
+	)
 	var i GetEligibleFlowRow
 	err := row.Scan(
 		&i.Document,
@@ -179,20 +189,22 @@ func (q *Queries) InsertFlowAudit(ctx context.Context, arg InsertFlowAuditParams
 }
 
 const listFlows = `-- name: ListFlows :many
-SELECT document::jsonb AS document,presentation_version,image_kind,image_asset_id,video_asset_id,duration_ms,media_width,media_height,
- CASE WHEN starts_at<=$1::timestamptz THEN 0 ELSE 1 END::integer AS phase_rank
-FROM experiences.flow_discovery
-WHERE ends_at>$2::timestamptz AND starts_at<=$3::timestamptz
-AND ($4::text='' OR category_id=$4)
-AND (NOT $5::boolean OR ST_DWithin(point,ST_SetSRID(ST_MakePoint($6::float8,$7::float8),4326)::geography,$8::float8))
-AND (CASE WHEN starts_at<=$1 THEN 0 ELSE 1 END,starts_at,id)>($9::integer,$10::timestamptz,$11::uuid)
-ORDER BY phase_rank,starts_at,id LIMIT $12
+SELECT f.document::jsonb AS document,f.presentation_version,f.image_kind,f.image_asset_id,f.video_asset_id,f.duration_ms,f.media_width,f.media_height,
+ CASE WHEN f.starts_at<=$1::timestamptz THEN 0 ELSE 1 END::integer AS phase_rank
+FROM experiences.flow_discovery f
+WHERE f.ends_at>$2::timestamptz AND f.starts_at<=$3::timestamptz
+AND NOT EXISTS(SELECT FROM participation.members b WHERE b.experience_id=f.id AND b.user_id=$4::uuid AND b.blocked)
+AND ($5::text='' OR f.category_id=$5)
+AND (NOT $6::boolean OR ST_DWithin(f.point,ST_SetSRID(ST_MakePoint($7::float8,$8::float8),4326)::geography,$9::float8))
+AND (CASE WHEN f.starts_at<=$1 THEN 0 ELSE 1 END,f.starts_at,f.id)>($10::integer,$11::timestamptz,$12::uuid)
+ORDER BY phase_rank,f.starts_at,f.id LIMIT $13
 `
 
 type ListFlowsParams struct {
 	Snapshot       pgtype.Timestamptz
 	AsOf           pgtype.Timestamptz
 	WindowEnd      pgtype.Timestamptz
+	Viewer         pgtype.UUID
 	CategoryFilter string
 	Nearby         bool
 	Longitude      float64
@@ -221,6 +233,7 @@ func (q *Queries) ListFlows(ctx context.Context, arg ListFlowsParams) ([]ListFlo
 		arg.Snapshot,
 		arg.AsOf,
 		arg.WindowEnd,
+		arg.Viewer,
 		arg.CategoryFilter,
 		arg.Nearby,
 		arg.Longitude,

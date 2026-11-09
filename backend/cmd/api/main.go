@@ -7,6 +7,7 @@ import (
 	"flow.local/backend/internal/identity"
 	identityhttp "flow.local/backend/internal/identity/transport"
 	"flow.local/backend/internal/media"
+	"flow.local/backend/internal/participation"
 	"flow.local/backend/internal/platform/config"
 	"flow.local/backend/internal/platform/dependencies"
 	"flow.local/backend/internal/platform/httpapi"
@@ -66,7 +67,12 @@ func run(log *slog.Logger) error {
 	}
 	mediaService.ConfigureFlows(flowMediaConfig)
 	experiencesHandler := experiences.NewHandler(experiences.New(deps.Postgres, mediaService, experiencesConfig), mediaService, identityHandler, log)
-	server := &http.Server{Addr: c.Address, Handler: httpapi.New(log, deps, c.MaxBodyBytes, c.DependencyTimeout, draining.Load, identityHandler.Register, experiencesHandler.Register), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
+	participationConfig, err := participation.ParseConfig(os.Getenv, identityConfig.HMACKey)
+	if err != nil {
+		return err
+	}
+	participationHandler := participation.NewHandler(participation.New(deps.Postgres, participationConfig), identityHandler)
+	server := &http.Server{Addr: c.Address, Handler: httpapi.New(log, deps, c.MaxBodyBytes, c.DependencyTimeout, draining.Load, identityHandler.Register, experiencesHandler.Register, participationHandler.Register), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
 	done := make(chan error, 1)
 	go func() {
 		log.Info("api starting", "address", c.Address, "environment", c.Environment)

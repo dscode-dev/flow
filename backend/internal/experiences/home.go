@@ -99,7 +99,7 @@ func (s *Service) Home(ctx context.Context, session *identity.Session, f HomeFil
 		}
 		out.CategoryID = &f.Category
 	}
-	rows, err := dbgen.New(s.pool).HomeCandidates(ctx, dbgen.HomeCandidatesParams{
+	rows, err := dbgen.New(s.pool).HomeCandidates(ctx, dbgen.HomeCandidatesParams{Viewer: id(session.UserID),
 		AsOf: ts(now), SoonUntil: ts(now.Add(time.Duration(s.config.HomeSoonHours) * time.Hour)),
 		SectionLimit: int32(f.Limit), Nearby: f.Location != nil, Latitude: lat, Longitude: lng, RadiusM: float64(f.RadiusM), CategoryFilter: f.Category,
 	})

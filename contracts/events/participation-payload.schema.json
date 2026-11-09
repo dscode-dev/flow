@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:flow:events:participation:payload:v1",
+  "title": "Participation, invitation and check-in fact payload v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["experience_id", "subject_user_id", "resource_id", "version", "state"],
+  "properties": {
+    "experience_id": {"type": "string", "format": "uuid"},
+    "subject_user_id": {"type": "string", "format": "uuid"},
+    "resource_id": {"type": "string", "format": "uuid"},
+    "version": {"type": "integer", "minimum": 1},
+    "state": {"enum": ["NONE", "PENDING", "CONFIRMED", "DECLINED", "CANCELLED", "REMOVED", "ACCEPTED", "REVOKED", "CHECKED_IN", "FREE", "APPROVAL", "INVITE"]}
+  }
+}

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -128,7 +129,17 @@ class ExperienceDetailController extends ValueNotifier<ExperienceDetailState> {
   CancelToken? _cancel;
   int _generation = 0;
   bool _disposed = false;
+  Timer? _privateTTL;
+  void pausePrivate() {
+    final e = value.experience;
+    if (e?.input.visibility == ExperienceVisibility.private &&
+        e?.creatorId != access.ownerId) {
+      _clear();
+    }
+  }
+
   void _clear() {
+    _privateTTL?.cancel();
     _generation++;
     _cancel?.cancel();
     if (!_disposed) value = const ExperienceDetailState();
@@ -136,6 +147,7 @@ class ExperienceDetailController extends ValueNotifier<ExperienceDetailState> {
 
   Future<void> load() async {
     if (value.busy) return;
+    _privateTTL?.cancel();
     _cancel?.cancel();
     final c = _cancel = CancelToken();
     final g = ++_generation;
@@ -144,6 +156,10 @@ class ExperienceDetailController extends ValueNotifier<ExperienceDetailState> {
       final e = await repository.get(id, cancel: c);
       if (!_disposed && g == _generation) {
         value = ExperienceDetailState(experience: e);
+        if (e.input.visibility == ExperienceVisibility.private &&
+            e.creatorId != access.ownerId) {
+          _privateTTL = Timer(const Duration(seconds: 60), _clear);
+        }
       }
     } catch (e) {
       if (!_disposed && g == _generation) {

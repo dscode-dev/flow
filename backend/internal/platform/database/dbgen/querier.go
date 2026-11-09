@@ -14,6 +14,7 @@ type Querier interface {
 	ActiveUserSessionIDs(ctx context.Context, userID pgtype.UUID) ([]string, error)
 	AppendOutbox(ctx context.Context, arg AppendOutboxParams) error
 	AttemptIdentityChallenge(ctx context.Context, arg AttemptIdentityChallengeParams) error
+	CanAccessParticipationExperience(ctx context.Context, arg CanAccessParticipationExperienceParams) (bool, error)
 	ClaimFlowAsset(ctx context.Context, leaseID pgtype.UUID) (MediaFlowAsset, error)
 	CleanupExperienceAudit(ctx context.Context) error
 	CleanupExperienceRates(ctx context.Context) error
@@ -22,7 +23,12 @@ type Querier interface {
 	CleanupMediaAudit(ctx context.Context) error
 	CleanupMediaRates(ctx context.Context) error
 	CleanupMediaTombstones(ctx context.Context) error
+	CleanupParticipationAudit(ctx context.Context) error
+	CleanupParticipationCredentials(ctx context.Context) error
+	CleanupParticipationRates(ctx context.Context) error
+	CleanupParticipationTechnical(ctx context.Context) error
 	CompleteIdentityOnboarding(ctx context.Context, arg CompleteIdentityOnboardingParams) error
+	ConsumeCheckinCredential(ctx context.Context, id pgtype.UUID) error
 	ConsumeIdentityChallenge(ctx context.Context, id pgtype.UUID) error
 	ConsumeRefreshCredential(ctx context.Context, id pgtype.UUID) error
 	CountActiveSessions(ctx context.Context, userID pgtype.UUID) (int64, error)
@@ -43,17 +49,23 @@ type Querier interface {
 	FindAccessSession(ctx context.Context, credentialHash []byte) (FindAccessSessionRow, error)
 	FindFlowAssetKey(ctx context.Context, arg FindFlowAssetKeyParams) (MediaFlowAsset, error)
 	FindMediaUploadKey(ctx context.Context, arg FindMediaUploadKeyParams) (MediaUpload, error)
+	FindParticipationInvitation(ctx context.Context, id pgtype.UUID) (ParticipationInvitation, error)
+	FindParticipationInvitee(ctx context.Context, arg FindParticipationInviteeParams) (pgtype.UUID, error)
 	FindProviderIdentity(ctx context.Context, arg FindProviderIdentityParams) (FindProviderIdentityRow, error)
 	FindRefreshOwner(ctx context.Context, id pgtype.UUID) (FindRefreshOwnerRow, error)
 	FlowAssetCleanupCandidates(ctx context.Context) ([]MediaFlowAsset, error)
 	FlowAssetIsBound(ctx context.Context, imageAssetID pgtype.UUID) (bool, error)
 	FlowAssetStagingCleaned(ctx context.Context, id pgtype.UUID) error
 	FlowMediaSessionActive(ctx context.Context, arg FlowMediaSessionActiveParams) (bool, error)
+	GetCheckinCredential(ctx context.Context, arg GetCheckinCredentialParams) (ParticipationCheckinCredential, error)
 	GetEligibleFlow(ctx context.Context, arg GetEligibleFlowParams) (GetEligibleFlowRow, error)
 	GetExperience(ctx context.Context, id pgtype.UUID) ([]byte, error)
 	GetFlowAsset(ctx context.Context, id pgtype.UUID) (MediaFlowAsset, error)
 	GetFlowPresentation(ctx context.Context, experienceID pgtype.UUID) (ExperiencesFlowPresentation, error)
 	GetMediaUpload(ctx context.Context, id pgtype.UUID) (MediaUpload, error)
+	GetParticipationCheckin(ctx context.Context, arg GetParticipationCheckinParams) (ParticipationCheckin, error)
+	GetParticipationInvitation(ctx context.Context, arg GetParticipationInvitationParams) (ParticipationInvitation, error)
+	GetParticipationMember(ctx context.Context, arg GetParticipationMemberParams) (ParticipationMember, error)
 	// NOT MATERIALIZED allows each bounded branch to use the existing agenda,
 	// category, GiST and partial recency indexes. One snapshot/round trip, no N+1.
 	HomeCandidates(ctx context.Context, arg HomeCandidatesParams) ([]HomeCandidatesRow, error)
@@ -73,6 +85,7 @@ type Querier interface {
 	InsertIdentitySession(ctx context.Context, arg InsertIdentitySessionParams) error
 	InsertMediaAudit(ctx context.Context, arg InsertMediaAuditParams) error
 	InsertMediaUpload(ctx context.Context, arg InsertMediaUploadParams) error
+	InsertParticipationAudit(ctx context.Context, arg InsertParticipationAuditParams) error
 	InsertProviderIdentity(ctx context.Context, arg InsertProviderIdentityParams) error
 	InsertRefreshCredential(ctx context.Context, arg InsertRefreshCredentialParams) error
 	IsReservedHandle(ctx context.Context, handle string) (bool, error)
@@ -81,6 +94,9 @@ type Querier interface {
 	ListFlows(ctx context.Context, arg ListFlowsParams) ([]ListFlowsRow, error)
 	ListIdentitySessions(ctx context.Context, userID pgtype.UUID) ([]ListIdentitySessionsRow, error)
 	ListOwnExperiences(ctx context.Context, arg ListOwnExperiencesParams) ([][]byte, error)
+	ListParticipationAgenda(ctx context.Context, arg ListParticipationAgendaParams) ([][]byte, error)
+	ListParticipationInvitations(ctx context.Context, arg ListParticipationInvitationsParams) ([][]byte, error)
+	ListParticipationMembers(ctx context.Context, arg ListParticipationMembersParams) ([][]byte, error)
 	ListUserIdentities(ctx context.Context, userID pgtype.UUID) ([]ListUserIdentitiesRow, error)
 	LockExperience(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error)
 	LockFlowAsset(ctx context.Context, id pgtype.UUID) (MediaFlowAsset, error)
@@ -94,6 +110,12 @@ type Querier interface {
 	MediaIsBound(ctx context.Context, mediaID pgtype.UUID) (bool, error)
 	MediaStagingCleaned(ctx context.Context, id pgtype.UUID) error
 	MediaUploadRate(ctx context.Context, ownerUserID pgtype.UUID) (int32, error)
+	ParticipationContext(ctx context.Context, arg ParticipationContextParams) (ParticipationContextRow, error)
+	ParticipationCredentialSessionActive(ctx context.Context, id pgtype.UUID) (bool, error)
+	ParticipationIdempotency(ctx context.Context, arg ParticipationIdempotencyParams) (ParticipationIdempotencyRow, error)
+	ParticipationPublicPerson(ctx context.Context, id pgtype.UUID) (ParticipationPublicPersonRow, error)
+	ParticipationRate(ctx context.Context, userID pgtype.UUID) (int32, error)
+	ParticipationTargetActive(ctx context.Context, id pgtype.UUID) (bool, error)
 	PruneIdentityAccess(ctx context.Context) (int64, error)
 	PruneIdentityAudit(ctx context.Context) (int64, error)
 	PruneIdentityChallengeSessions(ctx context.Context) (int64, error)
@@ -114,15 +136,25 @@ type Querier interface {
 	RejectMediaUpload(ctx context.Context, id pgtype.UUID) error
 	RemoveMediaBinding(ctx context.Context, experienceID pgtype.UUID) error
 	RestoreProviderIdentity(ctx context.Context, id pgtype.UUID) error
+	RevokeCheckinCredential(ctx context.Context, arg RevokeCheckinCredentialParams) error
 	RevokeIdentitySession(ctx context.Context, arg RevokeIdentitySessionParams) (int64, error)
+	RevokeParticipationCheckin(ctx context.Context, arg RevokeParticipationCheckinParams) (ParticipationCheckin, error)
 	RevokeProviderIdentity(ctx context.Context, arg RevokeProviderIdentityParams) (int64, error)
+	SaveCheckinCredential(ctx context.Context, arg SaveCheckinCredentialParams) error
 	SaveExperience(ctx context.Context, arg SaveExperienceParams) error
 	SaveFlowPresentation(ctx context.Context, arg SaveFlowPresentationParams) error
+	SaveParticipationCheckin(ctx context.Context, arg SaveParticipationCheckinParams) (ParticipationCheckin, error)
+	SaveParticipationIdempotency(ctx context.Context, arg SaveParticipationIdempotencyParams) error
+	SaveParticipationInvitation(ctx context.Context, arg SaveParticipationInvitationParams) (ParticipationInvitation, error)
+	SaveParticipationMember(ctx context.Context, arg SaveParticipationMemberParams) (ParticipationMember, error)
+	SaveParticipationSettings(ctx context.Context, arg SaveParticipationSettingsParams) error
 	SetChallengeDelivery(ctx context.Context, arg SetChallengeDeliveryParams) error
 	SetMediaBinding(ctx context.Context, arg SetMediaBindingParams) error
 	SupersedePhoneChallenges(ctx context.Context, subjectRef pgtype.Text) error
 	TouchAuthenticatedUser(ctx context.Context, id pgtype.UUID) error
 	TouchIdentitySession(ctx context.Context, id pgtype.UUID) error
+	UpdateExperienceCapacity(ctx context.Context, arg UpdateExperienceCapacityParams) error
+	UpdateParticipationInvitation(ctx context.Context, arg UpdateParticipationInvitationParams) (ParticipationInvitation, error)
 }
 
 var _ Querier = (*Queries)(nil)

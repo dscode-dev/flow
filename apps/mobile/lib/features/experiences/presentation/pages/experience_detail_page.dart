@@ -8,6 +8,7 @@ import '../../application/experience_controllers.dart';
 import '../../data/experiences_repository.dart';
 import '../../domain/experience.dart';
 import '../widgets/experience_widgets.dart';
+import '../../../participation/participation_panel.dart';
 
 class ExperienceDetailPage extends ConsumerStatefulWidget {
   const ExperienceDetailPage(this.id, {super.key});
@@ -45,12 +46,17 @@ class _ExperienceDetailPageState extends ConsumerState<ExperienceDetailPage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _controller.pausePrivate();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _controller.load();
+    if (state == AppLifecycleState.resumed) {
+      _controller.load();
+    } else {
+      _controller.pausePrivate();
+    }
   }
 
   Future<void> _transition(Experience e, String action) async {
@@ -185,6 +191,12 @@ class _ExperienceDetailPageState extends ConsumerState<ExperienceDetailPage>
                           state.issue!,
                           retry: () => _controller.load(),
                           actionLabel: 'Buscar versão atual',
+                        ),
+                      if (!e.detailsRedacted)
+                        ParticipationPanel(
+                          e.id,
+                          key: ValueKey('participation:${e.id}'),
+                          onChanged: () => _controller.load(),
                         ),
                       if (state.busy)
                         const Padding(

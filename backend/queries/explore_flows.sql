@@ -2,6 +2,7 @@
 SELECT d.document::jsonb AS document FROM experiences.discovery d
 JOIN experiences.experiences e ON e.id=d.id
 WHERE d.ends_at>sqlc.arg(as_of)::timestamptz
+AND NOT EXISTS(SELECT FROM participation.members b WHERE b.experience_id=d.id AND b.user_id=sqlc.arg(viewer)::uuid AND b.blocked)
 AND (sqlc.arg(search)::text='' OR e.search_vector @@ websearch_to_tsquery('portuguese',experiences.search_normalize(sqlc.arg(search))))
 AND (sqlc.arg(category_filter)::text='' OR d.category_id=sqlc.arg(category_filter))
 AND (sqlc.arg(phase_filter)::text='' OR (sqlc.arg(phase_filter)='LIVE' AND d.starts_at<=sqlc.arg(as_of)) OR (sqlc.arg(phase_filter)='UPCOMING' AND d.starts_at>sqlc.arg(as_of)))
@@ -11,18 +12,20 @@ AND (d.starts_at,d.id)>(sqlc.arg(after_time)::timestamptz,sqlc.arg(after_id)::uu
 ORDER BY d.starts_at,d.id LIMIT sqlc.arg(page_limit);
 
 -- name: ListFlows :many
-SELECT document::jsonb AS document,presentation_version,image_kind,image_asset_id,video_asset_id,duration_ms,media_width,media_height,
- CASE WHEN starts_at<=sqlc.arg(snapshot)::timestamptz THEN 0 ELSE 1 END::integer AS phase_rank
-FROM experiences.flow_discovery
-WHERE ends_at>sqlc.arg(as_of)::timestamptz AND starts_at<=sqlc.arg(window_end)::timestamptz
-AND (sqlc.arg(category_filter)::text='' OR category_id=sqlc.arg(category_filter))
-AND (NOT sqlc.arg(nearby)::boolean OR ST_DWithin(point,ST_SetSRID(ST_MakePoint(sqlc.arg(longitude)::float8,sqlc.arg(latitude)::float8),4326)::geography,sqlc.arg(radius_m)::float8))
-AND (CASE WHEN starts_at<=sqlc.arg(snapshot) THEN 0 ELSE 1 END,starts_at,id)>(sqlc.arg(after_rank)::integer,sqlc.arg(after_time)::timestamptz,sqlc.arg(after_id)::uuid)
-ORDER BY phase_rank,starts_at,id LIMIT sqlc.arg(page_limit);
+SELECT f.document::jsonb AS document,f.presentation_version,f.image_kind,f.image_asset_id,f.video_asset_id,f.duration_ms,f.media_width,f.media_height,
+ CASE WHEN f.starts_at<=sqlc.arg(snapshot)::timestamptz THEN 0 ELSE 1 END::integer AS phase_rank
+FROM experiences.flow_discovery f
+WHERE f.ends_at>sqlc.arg(as_of)::timestamptz AND f.starts_at<=sqlc.arg(window_end)::timestamptz
+AND NOT EXISTS(SELECT FROM participation.members b WHERE b.experience_id=f.id AND b.user_id=sqlc.arg(viewer)::uuid AND b.blocked)
+AND (sqlc.arg(category_filter)::text='' OR f.category_id=sqlc.arg(category_filter))
+AND (NOT sqlc.arg(nearby)::boolean OR ST_DWithin(f.point,ST_SetSRID(ST_MakePoint(sqlc.arg(longitude)::float8,sqlc.arg(latitude)::float8),4326)::geography,sqlc.arg(radius_m)::float8))
+AND (CASE WHEN f.starts_at<=sqlc.arg(snapshot) THEN 0 ELSE 1 END,f.starts_at,f.id)>(sqlc.arg(after_rank)::integer,sqlc.arg(after_time)::timestamptz,sqlc.arg(after_id)::uuid)
+ORDER BY phase_rank,f.starts_at,f.id LIMIT sqlc.arg(page_limit);
 
 -- name: GetEligibleFlow :one
-SELECT document::jsonb AS document,presentation_version,image_kind,image_asset_id,video_asset_id,duration_ms,media_width,media_height
-FROM experiences.flow_discovery WHERE id=$1 AND ends_at>$2 AND starts_at<=$3;
+SELECT f.document::jsonb AS document,f.presentation_version,f.image_kind,f.image_asset_id,f.video_asset_id,f.duration_ms,f.media_width,f.media_height
+FROM experiences.flow_discovery f WHERE f.id=sqlc.arg(experience_id) AND f.ends_at>sqlc.arg(as_of) AND f.starts_at<=sqlc.arg(window_end)
+AND NOT EXISTS(SELECT FROM participation.members b WHERE b.experience_id=f.id AND b.user_id=sqlc.arg(viewer)::uuid AND b.blocked);
 
 -- name: GetFlowPresentation :one
 SELECT * FROM experiences.flow_presentations WHERE experience_id=$1;

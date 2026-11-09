@@ -9,6 +9,7 @@ SELECT jsonb_build_object(
 )::jsonb AS marker
 FROM experiences.discovery d JOIN experiences.categories c ON c.id=d.category_id
 WHERE d.ends_at>sqlc.arg(as_of)::timestamptz
+ AND NOT EXISTS(SELECT FROM participation.members b WHERE b.experience_id=d.id AND b.user_id=sqlc.arg(viewer)::uuid AND b.blocked)
  AND ((NOT sqlc.arg(crosses)::boolean AND ST_Intersects(d.point::geometry,ST_MakeEnvelope(sqlc.arg(west)::float8,sqlc.arg(south)::float8,sqlc.arg(east)::float8,sqlc.arg(north)::float8,4326)))
  OR (sqlc.arg(crosses) AND (ST_Intersects(d.point::geometry,ST_MakeEnvelope(sqlc.arg(west),sqlc.arg(south),180,sqlc.arg(north),4326))
  OR ST_Intersects(d.point::geometry,ST_MakeEnvelope(-180,sqlc.arg(south),sqlc.arg(east),sqlc.arg(north),4326)))))

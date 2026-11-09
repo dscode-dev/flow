@@ -50,5 +50,12 @@ experiences-test:
 experiences-mobile-contract:
 	FLOW_FLUTTER_CONTRACT_BIN="$(FLUTTER)" FLOW_EXPERIENCES_TEST_FILTER=TestFlutterExperiencesContract sh scripts/experiences-test.sh
 
+.PHONY: participation-test participation-mobile-contract
+participation-test:
+	FLOW_EXPERIENCES_TEST_FILTER=TestParticipation sh scripts/experiences-test.sh
+
+participation-mobile-contract:
+	FLOW_FLUTTER_CONTRACT_BIN="$(FLUTTER)" FLOW_EXPERIENCES_TEST_FILTER=TestFlutterParticipationContract sh scripts/experiences-test.sh
+
 experiences-maintenance:
 	$(COMPOSE) run --rm api /app/experiences-maintenance

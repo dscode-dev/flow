@@ -1,4 +1,6 @@
-# Flow V1 — Identity, Experiences, Home, Radar e Explorar
+# Flow V1 — Identity, Experiences, Discovery e Participação
+
+PR-06 entrega [Participação, convites, Minha Agenda e check-in](docs/features/participation.md): modalidades FREE/APPROVAL/INVITE, capacidade transacional PostgreSQL, convites individuais, gestão contextual e código temporário validado pelo organizador. PRIVATE exige convite, interesse não ocupa vaga e presença não comprova ingresso externo. [ADR0011](docs/decisions/0011-participation-capacity-checkin.md) e [relatório](docs/architecture/pr-06-completion-report.md).
 
 PR-05 entrega [Explorar](docs/features/explore.md) e [Flows](docs/features/flows.md): busca PostgreSQL indexada, carrossel e viewer vertical, apresentação subordinada à Experience, imagens/vídeo≤15s e processamento assíncrono no worker Go/FFmpeg. UNLISTED exige consentimento público explícito; PRIVATE nunca aparece. Sem P2P, feed pessoal ou métricas fictícias. [ADR0010](docs/decisions/0010-explore-flows-exposure-media.md) e [relatório](docs/architecture/pr-05-completion-report.md).
 
@@ -37,7 +39,7 @@ make migrate-down
 make migrate-up
 ```
 
-Probes: liveness200 sem dependências; readiness200 quando PostgreSQL/Redis/RabbitMQ estão disponíveis, 503 durante falha/encerramento. Endpoints reais no OpenAPI; nenhum CRUD Users/admin. `make smoke` é **somente para ambiente de teste vazio**: down/up das seis migrations (índice Radar, índice Home, Experiences/Media, Identity e fundação), com guardas para contas/experiências/mídia/integração existentes; interrompe e restaura Redis. Nunca executar em produção ou com dados a preservar. Rollback não remove PostGIS. S3 indisponível retorna503 nas operações de mídia, sem bloquear experiências sem capa.
+Probes: liveness200 sem dependências; readiness200 quando PostgreSQL/Redis/RabbitMQ estão disponíveis, 503 durante falha/encerramento. Endpoints reais no OpenAPI; nenhum CRUD Users/admin. `make smoke` é **somente para ambiente de teste vazio**: down/up das oito migrations (manutenção Participation, Participation, Flows, índice Radar, índice Home, Experiences/Media, Identity e fundação), com guardas para contas/experiências/mídia/integração existentes; interrompe e restaura Redis. Nunca executar em produção ou com dados a preservar. Rollback não remove PostGIS. S3 indisponível retorna503 nas operações de mídia, sem bloquear experiências sem capa.
 
 Observabilidade opcional: configure `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318` em `.env` e execute:
 

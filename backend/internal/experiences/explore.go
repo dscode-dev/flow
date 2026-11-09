@@ -98,7 +98,7 @@ func (s *Service) Explore(ctx context.Context, session *identity.Session, f Disc
 	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	rows, e := dbgen.New(s.pool).ExploreExperiences(ctx, dbgen.ExploreExperiencesParams{AsOf: ts(now), Search: f.Search, CategoryFilter: f.Spatial.Category, PhaseFilter: f.Spatial.Phase, Period: f.Spatial.From != nil, FromTime: ts(from), UntilTime: ts(until), Nearby: f.Spatial.Center != nil, Longitude: center.Longitude, Latitude: center.Latitude, RadiusM: f.Spatial.RadiusM, AfterTime: ts(c.Time), AfterID: id(c.ID), PageLimit: int32(f.Spatial.Limit + 1)})
+	rows, e := dbgen.New(s.pool).ExploreExperiences(ctx, dbgen.ExploreExperiencesParams{Viewer: id(session.UserID), AsOf: ts(now), Search: f.Search, CategoryFilter: f.Spatial.Category, PhaseFilter: f.Spatial.Phase, Period: f.Spatial.From != nil, FromTime: ts(from), UntilTime: ts(until), Nearby: f.Spatial.Center != nil, Longitude: center.Longitude, Latitude: center.Latitude, RadiusM: f.Spatial.RadiusM, AfterTime: ts(c.Time), AfterID: id(c.ID), PageLimit: int32(f.Spatial.Limit + 1)})
 	if e != nil {
 		return out, e
 	}

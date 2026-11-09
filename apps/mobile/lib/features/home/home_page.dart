@@ -161,6 +161,11 @@ class _HomePageState extends ConsumerState<HomePage>
                 icon: const Icon(Icons.calendar_month_outlined),
                 label: const Text('Minhas experiências'),
               ),
+              TextButton.icon(
+                onPressed: () => _open('/agenda'),
+                icon: const Icon(Icons.event_available_outlined),
+                label: const Text('Minha Agenda'),
+              ),
             ],
           ),
         ),

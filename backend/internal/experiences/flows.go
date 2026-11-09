@@ -73,8 +73,8 @@ func (s *Service) flowItem(session *identity.Session, r dbgen.GetEligibleFlowRow
 	}
 	return out, nil
 }
-func (s *Service) flowRow(ctx context.Context, eid string, now time.Time) (dbgen.GetEligibleFlowRow, error) {
-	r, e := dbgen.New(s.pool).GetEligibleFlow(ctx, dbgen.GetEligibleFlowParams{ID: id(eid), EndsAt: ts(now), StartsAt: ts(now.Add(time.Duration(s.config.FlowsWindowHours) * time.Hour))})
+func (s *Service) flowRow(ctx context.Context, eid, viewer string, now time.Time) (dbgen.GetEligibleFlowRow, error) {
+	r, e := dbgen.New(s.pool).GetEligibleFlow(ctx, dbgen.GetEligibleFlowParams{ExperienceID: id(eid), Viewer: id(viewer), AsOf: ts(now), WindowEnd: ts(now.Add(time.Duration(s.config.FlowsWindowHours) * time.Hour))})
 	if errors.Is(e, pgx.ErrNoRows) {
 		e = identity.ErrNotFound
 	}
@@ -85,7 +85,7 @@ func (s *Service) Flow(ctx context.Context, session *identity.Session, eid strin
 		return FlowItem{}, identity.ErrUnauthorized
 	}
 	now := time.Now().UTC()
-	r, e := s.flowRow(ctx, eid, now)
+	r, e := s.flowRow(ctx, eid, session.UserID, now)
 	if e != nil {
 		return FlowItem{}, e
 	}
@@ -107,7 +107,7 @@ func (s *Service) Flows(ctx context.Context, session *identity.Session, f Discov
 	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	rows, e := dbgen.New(s.pool).ListFlows(ctx, dbgen.ListFlowsParams{Snapshot: ts(c.Snapshot), AsOf: ts(now), WindowEnd: ts(c.Snapshot.Add(time.Duration(s.config.FlowsWindowHours) * time.Hour)), CategoryFilter: f.Spatial.Category, Nearby: f.Spatial.Center != nil, Longitude: center.Longitude, Latitude: center.Latitude, RadiusM: f.Spatial.RadiusM, AfterRank: c.Rank, AfterTime: ts(c.Time), AfterID: id(c.ID), PageLimit: int32(f.Spatial.Limit + 1)})
+	rows, e := dbgen.New(s.pool).ListFlows(ctx, dbgen.ListFlowsParams{Viewer: id(session.UserID), Snapshot: ts(c.Snapshot), AsOf: ts(now), WindowEnd: ts(c.Snapshot.Add(time.Duration(s.config.FlowsWindowHours) * time.Hour)), CategoryFilter: f.Spatial.Category, Nearby: f.Spatial.Center != nil, Longitude: center.Longitude, Latitude: center.Latitude, RadiusM: f.Spatial.RadiusM, AfterRank: c.Rank, AfterTime: ts(c.Time), AfterID: id(c.ID), PageLimit: int32(f.Spatial.Limit + 1)})
 	if e != nil {
 		return out, e
 	}
@@ -166,7 +166,7 @@ func (s *Service) FlowContent(ctx context.Context, eid, raw, rangeHeader string)
 	if !active {
 		return media.Stream{}, fail
 	}
-	r, e := s.flowRow(ctx, eid, now)
+	r, e := s.flowRow(ctx, eid, t.User, now)
 	if e != nil {
 		return media.Stream{}, e
 	}

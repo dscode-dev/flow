@@ -45,3 +45,6 @@ Welcome, telefone/OTP, Google oficial, Apple nativo iOS, sessão segura, onboard
 
 
 PR-01.C: configuração pública por ambiente em `config/auth.public.example.json` (valores deliberadamente vazios). Copiar para arquivo `.local.json` ignorado e preencher somente dados aprovados; usar `--dart-define-from-file=config/auth.public.local.json`. Nunca incluir chaves/segredos de servidor. [Readiness e configuração nativa](../../docs/features/authentication-release-readiness.md) e [evidência separada por categoria](../../docs/architecture/pr-01c-completion-report.md). `flutter test integration_test/auth_native_test.dart -d <simulador-limpo>` verifica armazenamento e guards sem autenticar com terceiros.
+## Participação — PR-06
+
+Detalhes → Sua participação/gestão contextual/check-in; Home → Minha Agenda. Todas as ações usam a sessão e Dio existentes. [Contratos, operação e roteiro físico](../../docs/features/participation.md). Sem câmera/GPS novos: participante mostra código temporário e organizador confere/valida no local. Confirmação e check-in não comprovam pagamento/ingresso externo.

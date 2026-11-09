@@ -30,6 +30,7 @@ import (
 	"flow.local/backend/internal/identity"
 	identityhttp "flow.local/backend/internal/identity/transport"
 	"flow.local/backend/internal/media"
+	"flow.local/backend/internal/participation"
 	"flow.local/backend/internal/platform/httpapi"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -74,6 +75,20 @@ func TestMain(m *testing.M) {
 	// Rollback only the new schema while an Identity record survives.
 	marker := uuid.NewString()
 	if _, e = db.Exec("INSERT INTO identity.users(id) VALUES($1)", marker); e != nil {
+		panic(e)
+	}
+	boundaryExperience := uuid.NewString()
+	if _, e = db.Exec("INSERT INTO experiences.experiences(id,creator_user_id) VALUES($1,$2)", boundaryExperience, marker); e != nil {
+		panic(e)
+	}
+	if e = goose.DownTo(db, "../../../migrations", 6); e != nil {
+		panic(e)
+	}
+	var participationBoundary bool
+	if e = db.QueryRow("SELECT to_regnamespace('participation') IS NULL AND EXISTS(SELECT FROM experiences.experiences WHERE id=$1) AND to_regclass('experiences.flow_presentations') IS NOT NULL AND EXISTS(SELECT FROM identity.users WHERE id=$2)", boundaryExperience, marker).Scan(&participationBoundary); e != nil || !participationBoundary {
+		panic("Participation rollback affected prior modules")
+	}
+	if e = goose.Up(db, "../../../migrations"); e != nil {
 		panic(e)
 	}
 	if e = goose.DownTo(db, "../../../migrations", 2); e != nil {
@@ -194,7 +209,13 @@ func newHarness(t *testing.T, limits ...int) *harness {
 	es := experiences.New(pool, ms, c)
 	auth := identityhttp.New(identity.NewService(context.Background(), pool, identity.Config{HMACKey: key, OriginMinute: 1000}))
 	handler := experiences.NewHandler(es, ms, auth)
-	server := httptest.NewServer(httpapi.New(slog.New(slog.NewTextHandler(io.Discard, nil)), checker{}, 1<<20, time.Second, func() bool { return false }, auth.Register, handler.Register))
+	pc, e := participation.ParseConfig(func(string) string { return "" }, key)
+	if e != nil {
+		t.Fatal(e)
+	}
+	pc.MutationMinute = 120
+	ph := participation.NewHandler(participation.New(pool, pc), auth)
+	server := httptest.NewServer(httpapi.New(slog.New(slog.NewTextHandler(io.Discard, nil)), checker{}, 1<<20, time.Second, func() bool { return false }, auth.Register, handler.Register, ph.Register))
 	t.Cleanup(server.Close)
 	return &harness{server, es, ms}
 }

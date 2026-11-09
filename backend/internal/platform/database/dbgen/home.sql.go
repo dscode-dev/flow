@@ -13,7 +13,8 @@ import (
 
 const homeCandidates = `-- name: HomeCandidates :many
 WITH eligible AS NOT MATERIALIZED (
- SELECT id, creator_user_id, created_at, starts_at, ends_at, status, visibility, moderation_status, category_id, point, document FROM experiences.discovery WHERE ends_at>$1::timestamptz
+ SELECT id, creator_user_id, created_at, starts_at, ends_at, status, visibility, moderation_status, category_id, point, document FROM experiences.discovery d WHERE ends_at>$1::timestamptz
+ AND NOT EXISTS(SELECT FROM participation.members b WHERE b.experience_id=d.id AND b.user_id=$2::uuid AND b.blocked)
 ), candidates AS (
  (SELECT 'highlights'::text AS section, d.document, d.category_id, d.starts_at, d.created_at, d.id, 0::float8 AS distance_m
  FROM eligible d WHERE d.starts_at>$1
@@ -21,25 +22,25 @@ WITH eligible AS NOT MATERIALIZED (
  UNION ALL
  (SELECT 'live',d.document,d.category_id,d.starts_at,d.created_at,d.id,0::float8
  FROM eligible d WHERE d.starts_at<=$1
- ORDER BY d.starts_at DESC,d.id DESC LIMIT $2)
+ ORDER BY d.starts_at DESC,d.id DESC LIMIT $3)
  UNION ALL
  (SELECT 'soon',d.document,d.category_id,d.starts_at,d.created_at,d.id,0::float8
- FROM eligible d WHERE d.starts_at>$1 AND d.starts_at<=$3::timestamptz
- ORDER BY d.starts_at,d.id LIMIT $2)
+ FROM eligible d WHERE d.starts_at>$1 AND d.starts_at<=$4::timestamptz
+ ORDER BY d.starts_at,d.id LIMIT $3)
  UNION ALL
  (SELECT 'nearby',d.document,d.category_id,d.starts_at,d.created_at,d.id,
- ST_Distance(d.point,ST_SetSRID(ST_MakePoint($4::float8,$5::float8),4326)::geography)::float8
- FROM eligible d WHERE $6::boolean AND
- ST_DWithin(d.point,ST_SetSRID(ST_MakePoint($4,$5),4326)::geography,$7::float8)
- ORDER BY 7,d.starts_at,d.id LIMIT $2)
+ ST_Distance(d.point,ST_SetSRID(ST_MakePoint($5::float8,$6::float8),4326)::geography)::float8
+ FROM eligible d WHERE $7::boolean AND
+ ST_DWithin(d.point,ST_SetSRID(ST_MakePoint($5,$6),4326)::geography,$8::float8)
+ ORDER BY 7,d.starts_at,d.id LIMIT $3)
  UNION ALL
  (SELECT 'contextual',d.document,d.category_id,d.starts_at,d.created_at,d.id,0::float8
- FROM eligible d WHERE ($8::text='' OR d.category_id=$8)
- AND (NOT $6::boolean OR ST_DWithin(d.point,ST_SetSRID(ST_MakePoint($4,$5),4326)::geography,$7))
- ORDER BY d.starts_at,d.created_at DESC,d.id LIMIT $2)
+ FROM eligible d WHERE ($9::text='' OR d.category_id=$9)
+ AND (NOT $7::boolean OR ST_DWithin(d.point,ST_SetSRID(ST_MakePoint($5,$6),4326)::geography,$8))
+ ORDER BY d.starts_at,d.created_at DESC,d.id LIMIT $3)
  UNION ALL
  (SELECT 'recent',d.document,d.category_id,d.starts_at,d.created_at,d.id,0::float8
- FROM eligible d ORDER BY d.created_at DESC,d.id DESC LIMIT $2)
+ FROM eligible d ORDER BY d.created_at DESC,d.id DESC LIMIT $3)
 )
 SELECT c.section::text,c.document::jsonb,cat.name::text AS category_name,c.distance_m::float8,
  c.starts_at,c.created_at,c.id FROM candidates c
@@ -48,6 +49,7 @@ SELECT c.section::text,c.document::jsonb,cat.name::text AS category_name,c.dista
 
 type HomeCandidatesParams struct {
 	AsOf           pgtype.Timestamptz
+	Viewer         pgtype.UUID
 	SectionLimit   int32
 	SoonUntil      pgtype.Timestamptz
 	Longitude      float64
@@ -72,6 +74,7 @@ type HomeCandidatesRow struct {
 func (q *Queries) HomeCandidates(ctx context.Context, arg HomeCandidatesParams) ([]HomeCandidatesRow, error) {
 	rows, err := q.db.Query(ctx, homeCandidates,
 		arg.AsOf,
+		arg.Viewer,
 		arg.SectionLimit,
 		arg.SoonUntil,
 		arg.Longitude,

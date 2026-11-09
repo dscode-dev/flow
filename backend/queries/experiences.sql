@@ -62,6 +62,7 @@ ORDER BY created_at DESC,id DESC LIMIT sqlc.arg(page_limit);
 -- name: DiscoverExperiences :many
 SELECT d.document::jsonb AS document FROM experiences.discovery d
 WHERE d.ends_at>sqlc.arg(as_of)::timestamptz
+ AND NOT EXISTS(SELECT FROM participation.members b WHERE b.experience_id=d.id AND b.user_id=sqlc.arg(viewer)::uuid AND b.blocked)
  AND (sqlc.arg(category_filter)::text='' OR d.category_id=sqlc.arg(category_filter))
  AND (sqlc.arg(phase_filter)::text='' OR (sqlc.arg(phase_filter)='LIVE' AND d.starts_at<=sqlc.arg(as_of)) OR (sqlc.arg(phase_filter)='UPCOMING' AND d.starts_at>sqlc.arg(as_of)))
  AND (d.starts_at,d.id)>(sqlc.arg(after_time)::timestamptz,sqlc.arg(after_id)::uuid)

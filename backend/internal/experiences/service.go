@@ -333,7 +333,14 @@ func (s *Service) Get(ctx context.Context, session *identity.Session, eid string
 	if e != nil {
 		return Experience{}, e
 	}
-	if session == nil || !authorized(r, session.UserID) {
+	if session == nil {
+		return Experience{}, identity.ErrNotFound
+	}
+	allowed, err := dbgen.New(s.pool).CanAccessParticipationExperience(ctx, dbgen.CanAccessParticipationExperienceParams{Column1: id(eid), Column2: id(session.UserID)})
+	if err != nil {
+		return Experience{}, err
+	}
+	if !allowed {
 		return Experience{}, identity.ErrNotFound
 	}
 	return presentation(r, session.UserID, time.Now()), nil
@@ -367,6 +374,11 @@ func (s *Service) Cleanup(ctx context.Context) error {
 		}
 		if e := q.CleanupExperienceRates(ctx); e != nil {
 			return e
+		}
+		for _, cleanup := range []func(context.Context) error{q.CleanupParticipationTechnical, q.CleanupParticipationCredentials, q.CleanupParticipationRates, q.CleanupParticipationAudit} {
+			if e := cleanup(ctx); e != nil {
+				return e
+			}
 		}
 		return q.CleanupExperienceAudit(ctx)
 	})

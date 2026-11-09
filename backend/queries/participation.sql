@@ -2,7 +2,7 @@
 SELECT participation.can_access($1::uuid,$2::uuid)::boolean;
 
 -- name: ParticipationContext :one
-SELECT d.document::jsonb AS document, COALESCE(s.mode,'FREE')::text AS mode,COALESCE(s.version,1)::bigint AS settings_version,
+SELECT d.document::jsonb AS document, (CASE WHEN d.visibility='PRIVATE' THEN 'INVITE' ELSE COALESCE(s.mode,'FREE') END)::text AS mode,COALESCE(s.version,1)::bigint AS settings_version,
  (SELECT count(*) FROM participation.members m WHERE m.experience_id=d.id AND m.state='CONFIRMED')::bigint AS confirmed_count,
  (SELECT status FROM identity.users WHERE id=d.creator_user_id)::text AS creator_status,
  participation.can_access(d.id,sqlc.arg(viewer)::uuid)::boolean AS accessible,clock_timestamp()::timestamptz AS as_of
@@ -32,6 +32,11 @@ WHERE u.status='active' AND u.onboarding_completed_at IS NOT NULL
 -- name: ParticipationTargetActive :one
 SELECT EXISTS(SELECT FROM identity.users WHERE id=$1 AND status='active' AND onboarding_completed_at IS NOT NULL);
 
+-- name: ParticipationPublicPerson :one
+SELECT CASE WHEN u.status='active' THEN COALESCE(p.display_name,'') ELSE 'Conta indisponível' END::text AS display_name,
+ COALESCE(CASE WHEN u.status='active' THEN p.handle ELSE NULL END,'')::text AS handle
+FROM identity.users u LEFT JOIN identity.profiles p ON p.user_id=u.id WHERE u.id=$1;
+
 -- name: GetParticipationInvitation :one
 SELECT * FROM participation.invitations WHERE experience_id=$1 AND invitee_user_id=$2;
 
@@ -41,7 +46,7 @@ SELECT * FROM participation.invitations WHERE id=$1;
 -- name: SaveParticipationInvitation :one
 INSERT INTO participation.invitations(id,experience_id,invitee_user_id,sender_user_id,state,expires_at)
 VALUES($1,$2,$3,$4,$5,$6)
-ON CONFLICT(experience_id,invitee_user_id) DO UPDATE SET sender_user_id=excluded.sender_user_id,state=excluded.state,expires_at=excluded.expires_at,
+ON CONFLICT(experience_id,invitee_user_id) DO UPDATE SET id=excluded.id,sender_user_id=excluded.sender_user_id,state=excluded.state,expires_at=excluded.expires_at,
  version=participation.invitations.version+1,updated_at=clock_timestamp() RETURNING *;
 
 -- name: UpdateParticipationInvitation :one
@@ -105,8 +110,8 @@ WHERE i.experience_id=sqlc.arg(experience_id) AND i.id>sqlc.arg(after_id)::uuid 
 
 -- name: ListParticipationAgenda :many
 WITH mine AS (
- SELECT experience_id FROM participation.members WHERE user_id=sqlc.arg(viewer)
- UNION SELECT experience_id FROM participation.invitations WHERE invitee_user_id=sqlc.arg(viewer)
+ SELECT mine_member.experience_id FROM participation.members mine_member WHERE mine_member.user_id=sqlc.arg(viewer)
+ UNION SELECT mine_invite.experience_id FROM participation.invitations mine_invite WHERE mine_invite.invitee_user_id=sqlc.arg(viewer)
 ), entries AS (
  SELECT e.*,COALESCE(m.state,'NONE')::text AS member_state,COALESCE(m.interested,false) AS interested,COALESCE(m.blocked,false) AS blocked,
   m.updated_at AS member_updated_at,i.id AS invitation_id,i.state AS invitation_state,i.expires_at AS invitation_expires_at,
@@ -138,10 +143,10 @@ FROM selected WHERE (sort_time,id)>(sqlc.arg(after_time)::timestamptz,sqlc.arg(a
 ORDER BY sort_time,id LIMIT sqlc.arg(page_limit);
 
 -- name: CleanupParticipationTechnical :exec
-DELETE FROM participation.idempotency WHERE expires_at<=now();
+DELETE FROM participation.idempotency WHERE (actor_user_id,key) IN (SELECT actor_user_id,key FROM participation.idempotency WHERE expires_at<=now() ORDER BY expires_at LIMIT 500);
 -- name: CleanupParticipationCredentials :exec
-DELETE FROM participation.checkin_credentials WHERE expires_at<now()-interval '1 day';
+DELETE FROM participation.checkin_credentials WHERE id IN (SELECT id FROM participation.checkin_credentials WHERE expires_at<now()-interval '1 day' ORDER BY expires_at LIMIT 500);
 -- name: CleanupParticipationRates :exec
-DELETE FROM participation.rate_limits WHERE window_start<now()-interval '2 days';
+DELETE FROM participation.rate_limits WHERE (user_id,window_start) IN (SELECT user_id,window_start FROM participation.rate_limits WHERE window_start<now()-interval '2 days' ORDER BY window_start LIMIT 500);
 -- name: CleanupParticipationAudit :exec
-DELETE FROM participation.audit WHERE created_at<now()-interval '180 days';
+DELETE FROM participation.audit WHERE id IN (SELECT id FROM participation.audit WHERE created_at<now()-interval '180 days' ORDER BY created_at,id LIMIT 500);

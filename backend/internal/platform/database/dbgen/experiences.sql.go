@@ -55,15 +55,17 @@ func (q *Queries) DeleteExpiredExperienceKey(ctx context.Context, arg DeleteExpi
 const discoverExperiences = `-- name: DiscoverExperiences :many
 SELECT d.document::jsonb AS document FROM experiences.discovery d
 WHERE d.ends_at>$1::timestamptz
- AND ($2::text='' OR d.category_id=$2)
- AND ($3::text='' OR ($3='LIVE' AND d.starts_at<=$1) OR ($3='UPCOMING' AND d.starts_at>$1))
- AND (d.starts_at,d.id)>($4::timestamptz,$5::uuid)
- AND (NOT $6::boolean OR ST_DWithin(d.point,ST_SetSRID(ST_MakePoint($7::float8,$8::float8),4326)::geography,$9::float8))
-ORDER BY d.starts_at,d.id LIMIT $10
+ AND NOT EXISTS(SELECT FROM participation.members b WHERE b.experience_id=d.id AND b.user_id=$2::uuid AND b.blocked)
+ AND ($3::text='' OR d.category_id=$3)
+ AND ($4::text='' OR ($4='LIVE' AND d.starts_at<=$1) OR ($4='UPCOMING' AND d.starts_at>$1))
+ AND (d.starts_at,d.id)>($5::timestamptz,$6::uuid)
+ AND (NOT $7::boolean OR ST_DWithin(d.point,ST_SetSRID(ST_MakePoint($8::float8,$9::float8),4326)::geography,$10::float8))
+ORDER BY d.starts_at,d.id LIMIT $11
 `
 
 type DiscoverExperiencesParams struct {
 	AsOf           pgtype.Timestamptz
+	Viewer         pgtype.UUID
 	CategoryFilter string
 	PhaseFilter    string
 	AfterTime      pgtype.Timestamptz
@@ -78,6 +80,7 @@ type DiscoverExperiencesParams struct {
 func (q *Queries) DiscoverExperiences(ctx context.Context, arg DiscoverExperiencesParams) ([][]byte, error) {
 	rows, err := q.db.Query(ctx, discoverExperiences,
 		arg.AsOf,
+		arg.Viewer,
 		arg.CategoryFilter,
 		arg.PhaseFilter,
 		arg.AfterTime,
