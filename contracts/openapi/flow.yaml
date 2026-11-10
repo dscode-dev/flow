@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Flow API
-  version: 1.6.0
+  version: 1.7.0
   description: 'Identity por PHONE, GOOGLE e APPLE; Experiences e capas S3 verificadas. Credenciais opacas Flow,
     sem senha. Provedores/storage sem configuração retornam 503; nenhuma homologação externa é presumida.'
 servers:
@@ -2333,9 +2333,12 @@ paths:
     post:
       operationId: approveExperienceParticipant
       summary: 'Organizador: approve'
-      description: approve somente PENDING, verifica última vaga atomicamente e preserva PENDING em409. remove revoga
-        acesso derivado/check-in/convite. block é contextual à Experience e impede caminhos alternativos. unblock
-        não restaura participação ou convite. Criador não aplica estas ações a si próprio.
+      description: approve somente PENDING, verifica última vaga atomicamente e preserva
+        PENDING em409. remove revoga acesso derivado/check-in/convite. block é contextual
+        à Experience e impede caminhos alternativos. unblock não restaura participação
+        ou convite. Criador não aplica estas ações a si próprio. Motivo categórico opcional
+        auditado. Após o encerramento, somente remove/block/unblock podem revogar permissões;
+        não reabrem participação.
       security:
       - bearerAuth: []
       responses:
@@ -2366,21 +2369,24 @@ paths:
         schema:
           type: string
           format: uuid
-        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
-          o estado atual após operações ambíguas.
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo
+          original por24h; busque o estado atual após operações ambíguas.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ParticipationEmptyInput'
+              $ref: '#/components/schemas/ParticipationModerationInput'
   /v1/experiences/{experienceId}/participants/{userId}/decline:
     post:
       operationId: declineExperienceParticipant
       summary: 'Organizador: decline'
-      description: approve somente PENDING, verifica última vaga atomicamente e preserva PENDING em409. remove revoga
-        acesso derivado/check-in/convite. block é contextual à Experience e impede caminhos alternativos. unblock
-        não restaura participação ou convite. Criador não aplica estas ações a si próprio.
+      description: approve somente PENDING, verifica última vaga atomicamente e preserva
+        PENDING em409. remove revoga acesso derivado/check-in/convite. block é contextual
+        à Experience e impede caminhos alternativos. unblock não restaura participação
+        ou convite. Criador não aplica estas ações a si próprio. Motivo categórico opcional
+        auditado. Após o encerramento, somente remove/block/unblock podem revogar permissões;
+        não reabrem participação.
       security:
       - bearerAuth: []
       responses:
@@ -2411,21 +2417,24 @@ paths:
         schema:
           type: string
           format: uuid
-        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
-          o estado atual após operações ambíguas.
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo
+          original por24h; busque o estado atual após operações ambíguas.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ParticipationEmptyInput'
+              $ref: '#/components/schemas/ParticipationModerationInput'
   /v1/experiences/{experienceId}/participants/{userId}/remove:
     post:
       operationId: removeExperienceParticipant
       summary: 'Organizador: remove'
-      description: approve somente PENDING, verifica última vaga atomicamente e preserva PENDING em409. remove revoga
-        acesso derivado/check-in/convite. block é contextual à Experience e impede caminhos alternativos. unblock
-        não restaura participação ou convite. Criador não aplica estas ações a si próprio.
+      description: approve somente PENDING, verifica última vaga atomicamente e preserva
+        PENDING em409. remove revoga acesso derivado/check-in/convite. block é contextual
+        à Experience e impede caminhos alternativos. unblock não restaura participação
+        ou convite. Criador não aplica estas ações a si próprio. Motivo categórico opcional
+        auditado. Após o encerramento, somente remove/block/unblock podem revogar permissões;
+        não reabrem participação.
       security:
       - bearerAuth: []
       responses:
@@ -2456,21 +2465,24 @@ paths:
         schema:
           type: string
           format: uuid
-        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
-          o estado atual após operações ambíguas.
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo
+          original por24h; busque o estado atual após operações ambíguas.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ParticipationEmptyInput'
+              $ref: '#/components/schemas/ParticipationModerationInput'
   /v1/experiences/{experienceId}/participants/{userId}/block:
     post:
       operationId: blockExperienceParticipant
       summary: 'Organizador: block'
-      description: approve somente PENDING, verifica última vaga atomicamente e preserva PENDING em409. remove revoga
-        acesso derivado/check-in/convite. block é contextual à Experience e impede caminhos alternativos. unblock
-        não restaura participação ou convite. Criador não aplica estas ações a si próprio.
+      description: approve somente PENDING, verifica última vaga atomicamente e preserva
+        PENDING em409. remove revoga acesso derivado/check-in/convite. block é contextual
+        à Experience e impede caminhos alternativos. unblock não restaura participação
+        ou convite. Criador não aplica estas ações a si próprio. Motivo categórico opcional
+        auditado. Após o encerramento, somente remove/block/unblock podem revogar permissões;
+        não reabrem participação.
       security:
       - bearerAuth: []
       responses:
@@ -2501,21 +2513,24 @@ paths:
         schema:
           type: string
           format: uuid
-        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
-          o estado atual após operações ambíguas.
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo
+          original por24h; busque o estado atual após operações ambíguas.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ParticipationEmptyInput'
+              $ref: '#/components/schemas/ParticipationModerationInput'
   /v1/experiences/{experienceId}/participants/{userId}/unblock:
     post:
       operationId: unblockExperienceParticipant
       summary: 'Organizador: unblock'
-      description: approve somente PENDING, verifica última vaga atomicamente e preserva PENDING em409. remove revoga
-        acesso derivado/check-in/convite. block é contextual à Experience e impede caminhos alternativos. unblock
-        não restaura participação ou convite. Criador não aplica estas ações a si próprio.
+      description: approve somente PENDING, verifica última vaga atomicamente e preserva
+        PENDING em409. remove revoga acesso derivado/check-in/convite. block é contextual
+        à Experience e impede caminhos alternativos. unblock não restaura participação
+        ou convite. Criador não aplica estas ações a si próprio. Motivo categórico opcional
+        auditado. Após o encerramento, somente remove/block/unblock podem revogar permissões;
+        não reabrem participação.
       security:
       - bearerAuth: []
       responses:
@@ -2546,14 +2561,14 @@ paths:
         schema:
           type: string
           format: uuid
-        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo original por24h; busque
-          o estado atual após operações ambíguas.
+        description: Uma chave por intenção. Retry com os mesmos dados retorna o recibo
+          original por24h; busque o estado atual após operações ambíguas.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ParticipationEmptyInput'
+              $ref: '#/components/schemas/ParticipationModerationInput'
   /v1/invitations/{invitationId}/accept:
     post:
       operationId: acceptParticipationInvitation
@@ -3840,6 +3855,288 @@ paths:
                 format: binary
         default:
           $ref: '#/components/responses/Error'
+  /v1/experiences/{experienceId}/space:
+    get:
+      operationId: getEventSpace
+      summary: getEventSpace
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Estado contextual atual, no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpaceSummary'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Organizador ou CONFIRMED atual para conteúdo; PUBLIC/UNLISTED não
+        participantes recebem apenas resumo limitado; PRIVATE sem confirmação404,
+        convite pendente não concede conteúdo. DRAFT sem feed, ENDED/CANCELLED/ARCHIVED
+        somente leitura. Moderação local com motivo e escopo, sem privilégios globais.
+        Cursor sessão/recurso/seção/limite15min,20/50. Revalidar em até30s, ao perder
+        participação/conta/background/rota. Criação/interações/mídia continuam pelos
+        contratos Social com contexto EVENT_SPACE e visibility SPACE; conteúdo nunca
+        entra automaticamente no feed/perfil Social.
+  /v1/experiences/{experienceId}/space/feed:
+    get:
+      operationId: getEventSpaceFeed
+      summary: getEventSpaceFeed
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 2048
+      responses:
+        '200':
+          description: Estado contextual atual, no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialPostPage'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Organizador ou CONFIRMED atual para conteúdo; PUBLIC/UNLISTED não
+        participantes recebem apenas resumo limitado; PRIVATE sem confirmação404,
+        convite pendente não concede conteúdo. DRAFT sem feed, ENDED/CANCELLED/ARCHIVED
+        somente leitura. Moderação local com motivo e escopo, sem privilégios globais.
+        Cursor sessão/recurso/seção/limite15min,20/50. Revalidar em até30s, ao perder
+        participação/conta/background/rota. Criação/interações/mídia continuam pelos
+        contratos Social com contexto EVENT_SPACE e visibility SPACE; conteúdo nunca
+        entra automaticamente no feed/perfil Social.
+  /v1/experiences/{experienceId}/space/gallery:
+    get:
+      operationId: getEventSpaceGallery
+      summary: getEventSpaceGallery
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 2048
+      responses:
+        '200':
+          description: Estado contextual atual, no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpaceGalleryPage'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Organizador ou CONFIRMED atual para conteúdo; PUBLIC/UNLISTED não
+        participantes recebem apenas resumo limitado; PRIVATE sem confirmação404,
+        convite pendente não concede conteúdo. DRAFT sem feed, ENDED/CANCELLED/ARCHIVED
+        somente leitura. Moderação local com motivo e escopo, sem privilégios globais.
+        Cursor sessão/recurso/seção/limite15min,20/50. Revalidar em até30s, ao perder
+        participação/conta/background/rota. Criação/interações/mídia continuam pelos
+        contratos Social com contexto EVENT_SPACE e visibility SPACE; conteúdo nunca
+        entra automaticamente no feed/perfil Social.
+  /v1/experiences/{experienceId}/space/participants:
+    get:
+      operationId: getEventSpaceParticipants
+      summary: getEventSpaceParticipants
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 2048
+      responses:
+        '200':
+          description: Estado contextual atual, no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpaceParticipantsPage'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Organizador ou CONFIRMED atual para conteúdo; PUBLIC/UNLISTED não
+        participantes recebem apenas resumo limitado; PRIVATE sem confirmação404,
+        convite pendente não concede conteúdo. DRAFT sem feed, ENDED/CANCELLED/ARCHIVED
+        somente leitura. Moderação local com motivo e escopo, sem privilégios globais.
+        Cursor sessão/recurso/seção/limite15min,20/50. Revalidar em até30s, ao perder
+        participação/conta/background/rota. Criação/interações/mídia continuam pelos
+        contratos Social com contexto EVENT_SPACE e visibility SPACE; conteúdo nunca
+        entra automaticamente no feed/perfil Social.
+  /v1/experiences/{experienceId}/space/reports:
+    get:
+      operationId: getEventSpaceReports
+      summary: getEventSpaceReports
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 2048
+      responses:
+        '200':
+          description: Estado contextual atual, no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpaceReportsPage'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Organizador ou CONFIRMED atual para conteúdo; PUBLIC/UNLISTED não
+        participantes recebem apenas resumo limitado; PRIVATE sem confirmação404,
+        convite pendente não concede conteúdo. DRAFT sem feed, ENDED/CANCELLED/ARCHIVED
+        somente leitura. Moderação local com motivo e escopo, sem privilégios globais.
+        Cursor sessão/recurso/seção/limite15min,20/50. Revalidar em até30s, ao perder
+        participação/conta/background/rota. Criação/interações/mídia continuam pelos
+        contratos Social com contexto EVENT_SPACE e visibility SPACE; conteúdo nunca
+        entra automaticamente no feed/perfil Social.
+  /v1/experiences/{experienceId}/space/hidden:
+    get:
+      operationId: getEventSpaceHidden
+      summary: getEventSpaceHidden
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 2048
+      responses:
+        '200':
+          description: Estado contextual atual, no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpaceHiddenPage'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Organizador ou CONFIRMED atual para conteúdo; PUBLIC/UNLISTED não
+        participantes recebem apenas resumo limitado; PRIVATE sem confirmação404,
+        convite pendente não concede conteúdo. DRAFT sem feed, ENDED/CANCELLED/ARCHIVED
+        somente leitura. Moderação local com motivo e escopo, sem privilégios globais.
+        Cursor sessão/recurso/seção/limite15min,20/50. Revalidar em até30s, ao perder
+        participação/conta/background/rota. Criação/interações/mídia continuam pelos
+        contratos Social com contexto EVENT_SPACE e visibility SPACE; conteúdo nunca
+        entra automaticamente no feed/perfil Social.
+  /v1/experiences/{experienceId}/space/moderation:
+    post:
+      operationId: moderateEventSpace
+      summary: moderateEventSpace
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Estado contextual atual, no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialReceipt'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Organizador ou CONFIRMED atual para conteúdo; PUBLIC/UNLISTED não
+        participantes recebem apenas resumo limitado; PRIVATE sem confirmação404,
+        convite pendente não concede conteúdo. DRAFT sem feed, ENDED/CANCELLED/ARCHIVED
+        somente leitura. Moderação local com motivo e escopo, sem privilégios globais.
+        Cursor sessão/recurso/seção/limite15min,20/50. Revalidar em até30s, ao perder
+        participação/conta/background/rota. Criação/interações/mídia continuam pelos
+        contratos Social com contexto EVENT_SPACE e visibility SPACE; conteúdo nunca
+        entra automaticamente no feed/perfil Social.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceModerationInput'
 components:
   responses:
     Error:
@@ -5622,6 +5919,7 @@ components:
           enum:
           - PERSONAL
           - EXPERIENCE_PUBLIC
+          - EVENT_SPACE
         experience_id:
           type: string
           format: uuid
@@ -5635,6 +5933,7 @@ components:
           enum:
           - PUBLIC
           - FOLLOWERS
+          - SPACE
         body:
           type: string
           maxLength: 5000
@@ -5672,6 +5971,10 @@ components:
         valid_until:
           type: string
           format: date-time
+        can_interact:
+          type: boolean
+        can_context_moderate:
+          type: boolean
       required:
       - id
       - author
@@ -5806,6 +6109,7 @@ components:
           enum:
           - PERSONAL
           - EXPERIENCE_PUBLIC
+          - EVENT_SPACE
         experience_id:
           type: string
           format: uuid
@@ -5815,6 +6119,7 @@ components:
           enum:
           - PUBLIC
           - FOLLOWERS
+          - SPACE
         body:
           type: string
           maxLength: 5000
@@ -6096,3 +6401,374 @@ components:
       - failure_code
       - variant
       - as_of
+    SpaceCapabilities:
+      type: object
+      additionalProperties: false
+      properties:
+        can_read:
+          type: boolean
+        can_write:
+          type: boolean
+        can_moderate:
+          type: boolean
+        can_manage_roles:
+          type: boolean
+        can_manage_participation:
+          type: boolean
+      required:
+      - can_read
+      - can_write
+      - can_moderate
+      - can_manage_roles
+      - can_manage_participation
+    SpaceSummary:
+      type: object
+      additionalProperties: false
+      properties:
+        experience_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 5000
+        cover_media_id:
+          type: string
+          format: uuid
+          nullable: true
+        starts_at:
+          type: string
+          format: date-time
+          nullable: true
+        ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        visibility:
+          type: string
+          enum:
+          - PUBLIC
+          - UNLISTED
+          - PRIVATE
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - PUBLISHED
+          - CANCELLED
+          - ARCHIVED
+        phase:
+          type: string
+          enum:
+          - DRAFT
+          - UPCOMING
+          - LIVE
+          - ENDED
+          - CANCELLED
+          - ARCHIVED
+        my_state:
+          type: string
+          enum:
+          - NONE
+          - PENDING
+          - CONFIRMED
+          - DECLINED
+          - CANCELLED
+          - REMOVED
+        interested:
+          type: boolean
+        role:
+          type: string
+          enum:
+          - CREATOR
+          - MODERATOR
+          - PARTICIPANT
+          - VISITOR
+        paused:
+          type: boolean
+          nullable: true
+        platform_suspended:
+          type: boolean
+          nullable: true
+        participant_count:
+          type: integer
+          minimum: 0
+          nullable: true
+        capabilities:
+          $ref: '#/components/schemas/SpaceCapabilities'
+        as_of:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+      required:
+      - experience_id
+      - title
+      - description
+      - cover_media_id
+      - starts_at
+      - ends_at
+      - visibility
+      - status
+      - phase
+      - my_state
+      - interested
+      - role
+      - paused
+      - platform_suspended
+      - participant_count
+      - capabilities
+      - as_of
+      - valid_until
+    SpaceParticipant:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+          maxLength: 80
+        handle:
+          type: string
+          maxLength: 30
+          nullable: true
+        role:
+          type: string
+          enum:
+          - CREATOR
+          - MODERATOR
+          - PARTICIPANT
+      required:
+      - user_id
+      - display_name
+      - handle
+      - role
+    SpaceGalleryItem:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        post_id:
+          type: string
+          format: uuid
+        post:
+          $ref: '#/components/schemas/SocialPost'
+      required:
+      - id
+      - post_id
+      - post
+    SpaceReport:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        target_type:
+          type: string
+          enum:
+          - POST
+          - COMMENT
+        target_id:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          enum:
+          - ABUSE
+          - SPAM
+          - PRIVACY
+          - ILLEGAL
+          - OTHER
+        created_at:
+          type: string
+          format: date-time
+        reviewed:
+          type: boolean
+      required:
+      - id
+      - target_type
+      - target_id
+      - reason
+      - created_at
+      - reviewed
+    SpaceHidden:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        target_type:
+          type: string
+          enum:
+          - POST
+          - COMMENT
+        target_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - target_type
+      - target_id
+      - created_at
+    SpaceModerationInput:
+      type: object
+      additionalProperties: false
+      properties:
+        target_type:
+          type: string
+          enum:
+          - POST
+          - COMMENT
+          - PARTICIPANT
+          - MODERATOR
+          - SPACE
+          - REPORT
+        target_id:
+          type: string
+          format: uuid
+        action:
+          type: string
+          enum:
+          - HIDE
+          - RESTORE
+          - RESTRICT
+          - ALLOW
+          - GRANT
+          - REVOKE
+          - PAUSE
+          - RESUME
+          - REVIEW
+        reason:
+          type: string
+          enum:
+          - ABUSE
+          - SPAM
+          - PRIVACY
+          - SAFETY
+          - OTHER
+      required:
+      - target_type
+      - target_id
+      - action
+      - reason
+    SpaceGalleryPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/SpaceGalleryItem'
+        next_cursor:
+          type: string
+          maxLength: 2048
+          nullable: true
+        as_of:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+      required:
+      - items
+      - next_cursor
+      - as_of
+      - valid_until
+    SpaceParticipantsPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/SpaceParticipant'
+        next_cursor:
+          type: string
+          maxLength: 2048
+          nullable: true
+        as_of:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+      required:
+      - items
+      - next_cursor
+      - as_of
+      - valid_until
+    SpaceReportsPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/SpaceReport'
+        next_cursor:
+          type: string
+          maxLength: 2048
+          nullable: true
+        as_of:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+      required:
+      - items
+      - next_cursor
+      - as_of
+      - valid_until
+    SpaceHiddenPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/SpaceHidden'
+        next_cursor:
+          type: string
+          maxLength: 2048
+          nullable: true
+        as_of:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+      required:
+      - items
+      - next_cursor
+      - as_of
+      - valid_until
+    ParticipationModerationInput:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          enum:
+          - ABUSE
+          - SPAM
+          - PRIVACY
+          - SAFETY
+          - OTHER
+      required: []

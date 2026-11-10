@@ -215,11 +215,13 @@ func (h *Handler) Register(r chi.Router) {
 				if !ok {
 					return
 				}
-				var in struct{}
+				var in struct {
+					Reason string `json:"reason,omitempty"`
+				}
 				if !decode(w, r, &in) {
 					return
 				}
-				out, e := h.s.Manage(r.Context(), identityhttp.Session(r), chi.URLParam(r, "experienceId"), chi.URLParam(r, "userId"), k, action, httpapi.RequestID(r.Context()))
+				out, e := h.s.Manage(r.Context(), identityhttp.Session(r), chi.URLParam(r, "experienceId"), chi.URLParam(r, "userId"), k, action, httpapi.RequestID(r.Context()), in.Reason)
 				respond(w, out, e, r)
 			})
 		}

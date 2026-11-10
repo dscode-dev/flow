@@ -27,6 +27,19 @@ func Operate(ctx context.Context, p *pgxpool.Pool, operator, caseID, action, tar
 		q := dbgen.New(tx)
 		var err error
 		switch action {
+		case "space", "hide-space", "show-space":
+			if _, e := q.LockExperience(ctx, id(target)); e != nil {
+				return identity.ErrNotFound
+			}
+			if action == "space" {
+				raw, e := q.GetExperience(ctx, id(target))
+				if e != nil {
+					return e
+				}
+				out = append(out, json.RawMessage(raw))
+			} else {
+				err = q.SpaceSetPlatformSuspended(ctx, dbgen.SpaceSetPlatformSuspendedParams{ExperienceID: id(target), PlatformSuspended: action == "hide-space"})
+			}
 		case "posts", "post":
 			pid, author := id(""), id("")
 			if action == "post" {

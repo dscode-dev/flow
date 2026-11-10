@@ -179,7 +179,7 @@ func (q *Queries) SocialComment(ctx context.Context, arg SocialCommentParams) er
 const socialComments = `-- name: SocialComments :many
 SELECT c.id,c.created_at,jsonb_build_object('id',c.id,'post_id',c.post_id,'author',social.person(c.author_user_id),'body',c.body,'created_at',c.created_at,'can_delete',c.author_user_id=$1::uuid OR p.author_user_id=$1)::jsonb AS document
 FROM social.comments c JOIN social.posts p ON p.id=c.post_id WHERE c.post_id=$2 AND social.can_read(c.post_id,$1)
-AND c.deleted_at IS NULL AND c.moderation_status='VISIBLE' AND social.connected(c.author_user_id,$1) AND social.connected(c.author_user_id,p.author_user_id)
+AND c.deleted_at IS NULL AND c.moderation_status='VISIBLE' AND NOT c.local_hidden AND social.interaction_visible(c.post_id,c.author_user_id,$1)
 AND c.created_at<=$3::timestamptz AND (c.created_at,c.id)<($4::timestamptz,$5::uuid)
 ORDER BY c.created_at DESC,c.id DESC LIMIT $6
 `
@@ -341,7 +341,7 @@ func (q *Queries) SocialExperienceOptions(ctx context.Context, arg SocialExperie
 
 const socialFeed = `-- name: SocialFeed :many
 SELECT p.created_at,p.id,social.post_document(p.id,$1::uuid)::jsonb AS document FROM social.posts p
-WHERE p.deleted_at IS NULL AND p.moderation_status='VISIBLE' AND p.created_at<=$2::timestamptz
+WHERE p.context<>'EVENT_SPACE' AND p.deleted_at IS NULL AND p.moderation_status='VISIBLE' AND p.created_at<=$2::timestamptz
 AND (p.created_at,p.id)<($3::timestamptz,$4::uuid)
 AND ($5::uuid IS NULL OR p.author_user_id=$5)
 AND ($6::text<>'DISCOVER' OR p.visibility='PUBLIC')
@@ -453,7 +453,7 @@ func (q *Queries) SocialLike(ctx context.Context, arg SocialLikeParams) (int64, 
 }
 
 const socialLockComment = `-- name: SocialLockComment :one
-SELECT id, post_id, author_user_id, body, created_at, deleted_at, moderation_status FROM social.comments WHERE id=$1 FOR UPDATE
+SELECT id, post_id, author_user_id, body, created_at, deleted_at, moderation_status, local_hidden FROM social.comments WHERE id=$1 FOR UPDATE
 `
 
 func (q *Queries) SocialLockComment(ctx context.Context, id pgtype.UUID) (SocialComment, error) {
@@ -467,12 +467,13 @@ func (q *Queries) SocialLockComment(ctx context.Context, id pgtype.UUID) (Social
 		&i.CreatedAt,
 		&i.DeletedAt,
 		&i.ModerationStatus,
+		&i.LocalHidden,
 	)
 	return i, err
 }
 
 const socialLockPost = `-- name: SocialLockPost :one
-SELECT id, author_user_id, experience_id, context, visibility, body, created_at, updated_at, edited_at, deleted_at, moderation_status, version FROM social.posts WHERE id=$1 FOR UPDATE
+SELECT id, author_user_id, experience_id, context, visibility, body, created_at, updated_at, edited_at, deleted_at, moderation_status, version, local_hidden FROM social.posts WHERE id=$1 FOR UPDATE
 `
 
 func (q *Queries) SocialLockPost(ctx context.Context, id pgtype.UUID) (SocialPost, error) {
@@ -491,6 +492,7 @@ func (q *Queries) SocialLockPost(ctx context.Context, id pgtype.UUID) (SocialPos
 		&i.DeletedAt,
 		&i.ModerationStatus,
 		&i.Version,
+		&i.LocalHidden,
 	)
 	return i, err
 }
@@ -680,7 +682,7 @@ const socialProfile = `-- name: SocialProfile :one
 SELECT (social.person($1::uuid) || jsonb_build_object(
 'is_self',$1=$2::uuid,'following',EXISTS(SELECT FROM social.follows WHERE follower_id=$2 AND followed_id=$1),
 'follows_you',EXISTS(SELECT FROM social.follows WHERE follower_id=$1 AND followed_id=$2),
-'post_count',(SELECT count(*) FROM social.posts p WHERE p.author_user_id=$1 AND social.can_read(p.id,$2)),
+'post_count',(SELECT count(*) FROM social.posts p WHERE p.author_user_id=$1 AND p.context<>'EVENT_SPACE' AND social.can_read(p.id,$2)),
 'follower_count',(SELECT count(*) FROM social.follows f WHERE f.followed_id=$1 AND social.connected(f.follower_id,$2) AND social.connected(f.follower_id,$1)),
 'following_count',(SELECT count(*) FROM social.follows f WHERE f.follower_id=$1 AND social.connected(f.followed_id,$2) AND social.connected(f.followed_id,$1))))::jsonb AS document
 WHERE social.connected($1,$2)

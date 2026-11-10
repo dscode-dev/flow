@@ -121,3 +121,5 @@ Backend físico com drafts, publicação, edições protegidas/ETag, cancelament
 `make up` inclui servidor S3 compatível real local (SeaweedFS4.51, bucket privado/volume próprio). `make experiences-test` valida HTTP/OpenAPI, pgx/PostGIS e uploads reais em **flow_experiences_test** e bucket exclusivo **flow-experiences-test**; recria apenas schemas de teste. `make experiences-maintenance` limpa órfãos/staging/idempotência/quotas e retenção técnica em batches. Produção precisa agendamento, lifecycle/backup/TLS/IAM e fornecedor aprovado; nada foi provisionado em nuvem.
 
 Social PR-07: [funcionalidade, API e operação](docs/features/social.md), [ADR0012](docs/decisions/0012-social-publication-graph-media.md). Validação isolada: `make social-test` e `make social-mobile-contract`. Acesso pelo botão Social na Home, com autenticação existente. Nenhum deep link externo inventado.
+
+Event Space (PR-08): [matriz, contratos, moderação e operação](docs/features/event-space.md), [ADR0013](docs/decisions/0013-event-space-context-authorization.md). Validação isolada: `make event-space-test` e `make event-space-mobile-contract`.

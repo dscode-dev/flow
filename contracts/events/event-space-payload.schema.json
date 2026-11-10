@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:flow:events:event-space-payload:v1",
+  "title": "Event Space event payload v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "resource_id"
+  ],
+  "properties": {
+    "resource_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "actor_user_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "post_id": {
+      "type": "string",
+      "format": "uuid"
+    }
+  }
+}

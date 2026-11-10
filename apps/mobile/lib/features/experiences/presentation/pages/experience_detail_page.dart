@@ -192,6 +192,15 @@ class _ExperienceDetailPageState extends ConsumerState<ExperienceDetailPage>
                           retry: () => _controller.load(),
                           actionLabel: 'Buscar versão atual',
                         ),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          _controller.pausePrivate();
+                          await context.push('/experiences/${e.id}/space');
+                          if (mounted) await _controller.load();
+                        },
+                        icon: const Icon(Icons.forum_outlined),
+                        label: const Text('Abrir Event Space'),
+                      ),
                       if (!e.detailsRedacted)
                         ParticipationPanel(
                           e.id,

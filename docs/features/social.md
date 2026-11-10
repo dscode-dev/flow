@@ -65,3 +65,7 @@ Exclusão apaga body imediatamente, revoga novas interações/leituras/capabilit
 Roteiro físico pendente: duas contas autorizadas; PUBLIC/FOLLOWERS/follow/unfollow; perfil/contagens/scroll/cursor; texto/media<=15s e recusa>15s; rede intermitente/timeout de publish sem duplicação; session switch/background/expiração; bloqueio/revogação em outro aparelho inclusive URL anterior; comentários/report/CLI auditados; tema claro/escuro/texto ampliado/leitor de tela; um player silencioso/memória/bateria; remoçãoS3/worker atrasado. Sem alegação de instalação ou homologação física neste PR.
 
 Sem origem HTTPS/universal links/app links aprovada não há botão de compartilhar externamente nem URL inventada. Configuração de produção/assinatura/provedores/URLs legais/processos de moderação/privacidade permanece externa. PR-08 tem pontos de extensão no mesmo post/comment/media, exigindo novo contexto/ACL e testes específicos; o contexto privado não foi criado antecipadamente.
+
+## Extensão Event Space — PR-08
+
+O contexto explícito EVENT_SPACE/SPACE é restrito ao espaço da Experience e não circula nos feeds/perfis públicos. Reutiliza os mesmos posts/comentários/likes/reports/worker/mídia. Os contextos anteriores não foram migrados. Regras completas, histórico e moderação local separados da contenção global estão em [Event Space](event-space.md) e [ADR0013](../decisions/0013-event-space-context-authorization.md).

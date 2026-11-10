@@ -76,6 +76,9 @@ func emit(ctx context.Context, q *dbgen.Queries, actor, resource, action, reques
 // Actor/session lock serializes receipts. A pair lock serializes graph changes;
 // the post lock serializes interactions and content/moderation, without counters.
 func (s *Service) run(ctx context.Context, a *identity.Session, key, operation, req string, input any, fn func(context.Context, pgx.Tx, *dbgen.Queries) (string, error)) (map[string]any, error) {
+	return s.runGuarded(ctx, a, key, operation, req, input, nil, fn)
+}
+func (s *Service) runGuarded(ctx context.Context, a *identity.Session, key, operation, req string, input any, guard func(context.Context, pgx.Tx, *dbgen.Queries) error, fn func(context.Context, pgx.Tx, *dbgen.Queries) (string, error)) (map[string]any, error) {
 	if a == nil {
 		return nil, identity.ErrUnauthorized
 	}
@@ -109,6 +112,11 @@ func (s *Service) run(ctx context.Context, a *identity.Session, key, operation, 
 		if !active {
 			return identity.ErrRestricted
 		}
+		if guard != nil {
+			if e := guard(ctx, tx, q); e != nil {
+				return e
+			}
+		}
 		receipt, e := q.SocialReceipt(ctx, dbgen.SocialReceiptParams{ActorUserID: id(a.UserID), Key: id(key)})
 		if e == nil {
 			if !bytes.Equal(receipt.RequestHash, hash[:]) {
@@ -131,7 +139,10 @@ func (s *Service) run(ctx context.Context, a *identity.Session, key, operation, 
 }
 func (s *Service) Create(ctx context.Context, a *identity.Session, key string, in Input, req string) (map[string]any, error) {
 	in.Body = strings.TrimSpace(in.Body)
-	if !utf8.ValidString(in.Body) || utf8.RuneCountInString(in.Body) > s.config.BodyLimit || len(in.MediaIDs) > s.config.MediaLimit || (in.Body == "" && len(in.MediaIDs) == 0) || (in.Visibility != "PUBLIC" && in.Visibility != "FOLLOWERS") || (in.Context != "PERSONAL" && in.Context != "EXPERIENCE_PUBLIC") || ((in.Context == "PERSONAL") != (in.ExperienceID == nil)) {
+	if !utf8.ValidString(in.Body) || utf8.RuneCountInString(in.Body) > s.config.BodyLimit || len(in.MediaIDs) > s.config.MediaLimit || (in.Body == "" && len(in.MediaIDs) == 0) || (in.Visibility != "PUBLIC" && in.Visibility != "FOLLOWERS" && in.Visibility != "SPACE") || (in.Context != "PERSONAL" && in.Context != "EXPERIENCE_PUBLIC" && in.Context != "EVENT_SPACE") || ((in.Context == "PERSONAL") != (in.ExperienceID == nil)) {
+		return nil, ErrContent
+	}
+	if (in.Context == "EVENT_SPACE") != (in.Visibility == "SPACE") {
 		return nil, ErrContent
 	}
 	if in.ExperienceID != nil && !id(*in.ExperienceID).Valid {
@@ -144,7 +155,11 @@ func (s *Service) Create(ctx context.Context, a *identity.Session, key string, i
 		}
 		seen[aid] = true
 	}
-	return s.run(ctx, a, key, "post.create", req, in, func(ctx context.Context, tx pgx.Tx, q *dbgen.Queries) (string, error) {
+	var guard func(context.Context, pgx.Tx, *dbgen.Queries) error
+	if in.Context == "EVENT_SPACE" {
+		guard = spaceGuard(a, *in.ExperienceID, true)
+	}
+	return s.runGuarded(ctx, a, key, "post.create", req, in, guard, func(ctx context.Context, tx pgx.Tx, q *dbgen.Queries) (string, error) {
 		eid := pgtype.UUID{}
 		if in.ExperienceID != nil {
 			eid = id(*in.ExperienceID)
@@ -152,6 +167,9 @@ func (s *Service) Create(ctx context.Context, a *identity.Session, key string, i
 				return "", identity.ErrNotFound
 			}
 			ok, e := q.SocialExperienceEligible(ctx, dbgen.SocialExperienceEligibleParams{Column1: eid, Column2: id(a.UserID), Column3: id(a.UserID)})
+			if in.Context == "EVENT_SPACE" {
+				ok, e = q.SpaceWrite(ctx, dbgen.SpaceWriteParams{Column1: eid, Column2: id(a.UserID)})
+			}
 			if e != nil {
 				return "", e
 			}
@@ -224,7 +242,7 @@ func (s *Service) PostAction(ctx context.Context, a *identity.Session, pid, key,
 	if action == "edit" && expected == "" {
 		return nil, ErrPrecondition
 	}
-	return s.run(ctx, a, key, "post."+action, req, []string{pid, body, expected}, func(ctx context.Context, tx pgx.Tx, q *dbgen.Queries) (string, error) {
+	return s.runGuarded(ctx, a, key, "post."+action, req, []string{pid, body, expected}, postSpaceGuard(a, pid, action != "delete"), func(ctx context.Context, tx pgx.Tx, q *dbgen.Queries) (string, error) {
 		// Read owner before pair/post locks; immutable authorship prevents lock inversion.
 		d, e := loadPost(ctx, q, pid, a.UserID)
 		if e != nil && action != "delete" {

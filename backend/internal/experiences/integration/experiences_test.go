@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"flow.local/backend/internal/eventspace"
 	"flow.local/backend/internal/experiences"
 	"flow.local/backend/internal/identity"
 	identityhttp "flow.local/backend/internal/identity/transport"
@@ -84,6 +85,21 @@ func TestMain(m *testing.M) {
 	}
 	boundaryAsset := uuid.NewString()
 	if _, e = db.Exec("INSERT INTO media.flow_assets(id,experience_id,owner_user_id,idempotency_key,request_hash,content_type,size_bytes,staging_key,object_key,poster_key,expires_at) VALUES($1,$2,$3,$4,$5,'image/png',1,$6,$7,$8,now()+interval '5 minutes')", boundaryAsset, boundaryExperience, marker, uuid.NewString(), bytes.Repeat([]byte{7}, 32), "boundary/staging", "boundary/media", "boundary/poster"); e != nil {
+		panic(e)
+	}
+
+	boundaryPost := uuid.NewString()
+	if _, e = db.Exec("INSERT INTO social.posts(id,author_user_id,context,visibility,body) VALUES($1,$2,'PERSONAL','PUBLIC','Preservar Social PR07')", boundaryPost, marker); e != nil {
+		panic(e)
+	}
+	if e = goose.DownTo(db, "../../../migrations", 9); e != nil {
+		panic(e)
+	}
+	var spaceBoundary bool
+	if e = db.QueryRow("SELECT to_regnamespace('event_space') IS NULL AND to_regclass('social.space_posts_page') IS NULL AND EXISTS(SELECT FROM social.posts WHERE id=$1 AND context='PERSONAL') AND EXISTS(SELECT FROM media.flow_assets WHERE id=$2)", boundaryPost, boundaryAsset).Scan(&spaceBoundary); e != nil || !spaceBoundary {
+		panic("Event Space rollback affected prior Social/media")
+	}
+	if e = goose.Up(db, "../../../migrations"); e != nil {
 		panic(e)
 	}
 	if e = goose.DownTo(db, "../../../migrations", 8); e != nil {
@@ -232,8 +248,10 @@ func newHarness(t *testing.T, limits ...int) *harness {
 	ph := participation.NewHandler(participation.New(pool, pc), auth)
 	soc, _ := social.ParseConfig(func(string) string { return "" }, key)
 	soc.MutationMinute = 120
-	sh := social.NewHandler(social.New(pool, ms, soc), auth)
-	server := httptest.NewServer(httpapi.New(slog.New(slog.NewTextHandler(io.Discard, nil)), checker{}, 1<<20, time.Second, func() bool { return false }, auth.Register, handler.Register, ph.Register, sh.Register))
+	socialService := social.New(pool, ms, soc)
+	sh := social.NewHandler(socialService, auth)
+	eh := eventspace.NewHandler(socialService, auth)
+	server := httptest.NewServer(httpapi.New(slog.New(slog.NewTextHandler(io.Discard, nil)), checker{}, 1<<20, time.Second, func() bool { return false }, auth.Register, handler.Register, ph.Register, sh.Register, eh.Register))
 	t.Cleanup(server.Close)
 	return &harness{server, es, ms}
 }

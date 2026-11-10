@@ -55,3 +55,7 @@ Identity funcional foi acrescentado ao mesmo monólito: três métodos, contas/p
 ## Evolução PR-02.A
 
 Experiences implementa rascunho/publicação/edição limitada/cancelamento/arquivo, catálogo, visibilidade, PostGIS e consulta pública/own; Media implementa POST S3 temporário, confirmação por reencodificação e limpeza órfã. Dois schemas na migration00003, outbox/auditoria na transação. Readiness continua verificando PG/Redis/Rabbit; disponibilidade S3 é uma capacidade separada (uploads retornam503 na falha), permitindo uso sem capa. Compose local inclui SeaweedFS4.51 privado, sem provisionar nuvem. Flutter Experiences é o próximo ciclo, conforme [contrato PR-02.B](../features/experiences-mobile-integration.md); nenhuma tela nova entregue aqui.
+
+## Contexto Event Space — PR-08
+
+Boundary HTTP fino dentro do monólito, usando o serviço Social, Participation e UUID da Experience. Sem novo serviço/banco/worker. EVENT_SPACE/SPACE tem ACL própria e consulta contextual sem exposição no feed global; lifecycle deriva da Experience. Papéis/configuração/restrições são os únicos dados adicionais. [ADR0013](../decisions/0013-event-space-context-authorization.md) e [operação](../features/event-space.md).

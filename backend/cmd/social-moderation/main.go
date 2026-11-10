@@ -15,7 +15,7 @@ import (
 func run() error {
 	operator := flag.String("operator", "", "identidade operacional atribuível")
 	caseID := flag.String("case", "", "caso aprovado")
-	action := flag.String("action", "", "reports/post/posts/hide-post/show-post/delete-post/hide-comment/show-comment/restrict-user/restore-user/resolve-report")
+	action := flag.String("action", "", "space/hide-space/show-space/reports/post/posts/hide-post/show-post/delete-post/hide-comment/show-comment/restrict-user/restore-user/resolve-report")
 	target := flag.String("target", "", "UUID do alvo; posts usa autor")
 	flag.Parse()
 	dsn := os.Getenv("SOCIAL_MODERATION_DATABASE_URL")

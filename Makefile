@@ -67,3 +67,9 @@ social-test:
 .PHONY: social-mobile-contract
 social-mobile-contract:
 	FLOW_FLUTTER_CONTRACT_BIN="$(FLUTTER)" FLOW_EXPERIENCES_TEST_FILTER=TestFlutterSocialContract sh scripts/experiences-test.sh
+
+.PHONY: event-space-test event-space-mobile-contract
+event-space-test:
+	FLOW_EXPERIENCES_TEST_FILTER=TestEventSpace sh scripts/experiences-test.sh
+event-space-mobile-contract:
+	FLOW_FLUTTER_CONTRACT_BIN="$(FLUTTER)" FLOW_EXPERIENCES_TEST_FILTER=TestFlutterEventSpaceContract sh scripts/experiences-test.sh

@@ -17,6 +17,7 @@ import '../../features/participation/agenda_page.dart';
 import '../../features/participation/participation_management_page.dart';
 import '../../features/participation/checkin_page.dart';
 import '../../features/social/social_page.dart';
+import '../../features/event_space/event_space_page.dart';
 import '../../features/social/social_compose_page.dart';
 
 bool isExperiencePath(String path) =>
@@ -35,7 +36,7 @@ bool isExperiencePath(String path) =>
     path == '/experiences' ||
     path == '/experiences/new' ||
     RegExp(
-      r'^/experiences/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(/edit|/flow|/participants|/check-in)?$',
+      r'^/experiences/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(/edit|/flow|/participants|/check-in|/space|/space/new)?$',
     ).hasMatch(path);
 
 // Only an explicit local route is retained. Never accept returnTo/absolute URLs.
@@ -97,6 +98,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/radar', builder: (_, _) => const RadarPage()),
       GoRoute(path: '/explore', builder: (_, _) => const ExplorePage()),
       GoRoute(path: '/agenda', builder: (_, _) => const AgendaPage()),
+      GoRoute(
+        path: '/experiences/:id/space/new',
+        builder: (_, s) => SocialComposePage(
+          spaceId: s.pathParameters['id']!,
+          key: ValueKey('space-compose:${s.pathParameters['id']}'),
+        ),
+      ),
+      GoRoute(
+        path: '/experiences/:id/space',
+        builder: (_, s) => EventSpacePage(
+          s.pathParameters['id']!,
+          key: ValueKey('space:${s.pathParameters['id']}'),
+        ),
+      ),
       GoRoute(path: '/social', builder: (_, _) => const SocialPage()),
       GoRoute(
         path: '/social/new',

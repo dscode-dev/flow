@@ -59,18 +59,20 @@ func (s *Service) DeleteComment(ctx context.Context, a *identity.Session, pid, c
 	if !id(pid).Valid || !id(cid).Valid {
 		return nil, identity.ErrInvalid
 	}
-	return s.run(ctx, a, key, "comment.delete", req, []string{pid, cid}, func(ctx context.Context, _ pgx.Tx, q *dbgen.Queries) (string, error) {
+	return s.runGuarded(ctx, a, key, "comment.delete", req, []string{pid, cid}, postSpaceGuard(a, pid, false), func(ctx context.Context, _ pgx.Tx, q *dbgen.Queries) (string, error) {
 		// Parent first, matching post deletion/moderation and comment creation.
 		p, e := q.SocialLockPost(ctx, id(pid))
 		if e != nil {
 			return "", identity.ErrNotFound
 		}
-		if _, e = loadPost(ctx, q, pid, a.UserID); e != nil {
-			return "", e
-		}
 		c, e := q.SocialLockComment(ctx, id(cid))
 		if e != nil || c.PostID != p.ID || (c.AuthorUserID != id(a.UserID) && p.AuthorUserID != id(a.UserID)) {
 			return "", identity.ErrNotFound
+		}
+		if !(p.Context == "EVENT_SPACE" && c.AuthorUserID == id(a.UserID)) {
+			if _, e = loadPost(ctx, q, pid, a.UserID); e != nil {
+				return "", e
+			}
 		}
 		if e = connected(ctx, q, a.UserID, str(c.AuthorUserID)); e != nil {
 			return "", e
@@ -96,7 +98,7 @@ func (s *Service) Report(ctx context.Context, a *identity.Session, key string, i
 	default:
 		return nil, identity.ErrInvalid
 	}
-	return s.run(ctx, a, key, "report", req, in, func(ctx context.Context, _ pgx.Tx, q *dbgen.Queries) (string, error) {
+	return s.runGuarded(ctx, a, key, "report", req, in, reportSpaceGuard(a, in), func(ctx context.Context, _ pgx.Tx, q *dbgen.Queries) (string, error) {
 		switch in.TargetType {
 		case "USER":
 			if e := connected(ctx, q, a.UserID, in.TargetID); e != nil {
@@ -117,14 +119,18 @@ func (s *Service) Report(ctx context.Context, a *identity.Session, key string, i
 			}
 		case "COMMENT":
 			c, e := q.SocialLockComment(ctx, id(in.TargetID))
-			if e != nil || c.DeletedAt.Valid || c.ModerationStatus != "VISIBLE" {
+			if e != nil || c.DeletedAt.Valid || c.LocalHidden || c.ModerationStatus != "VISIBLE" {
 				return "", identity.ErrNotFound
 			}
 			if _, e = loadPost(ctx, q, str(c.PostID), a.UserID); e != nil {
 				return "", e
 			}
-			if e = connected(ctx, q, a.UserID, str(c.AuthorUserID)); e != nil {
+			visible, e := q.SocialInteractionVisible(ctx, dbgen.SocialInteractionVisibleParams{Column1: c.PostID, Column2: c.AuthorUserID, Column3: id(a.UserID)})
+			if e != nil {
 				return "", e
+			}
+			if !visible {
+				return "", identity.ErrNotFound
 			}
 		default:
 			return "", identity.ErrInvalid

@@ -145,6 +145,8 @@ final socialStoreProvider = Provider.autoDispose
 String socialMessage(Object? e) {
   final code = e is AuthIssue ? e.code : '';
   return switch (code) {
+    'space_read_only' =>
+      'Este espaço está em modo de leitura ou suas interações estão restritas.',
     'social_content_invalid' =>
       'Confira o texto, a mídia e os limites da publicação.',
     'not_found' => 'Conteúdo indisponível ou sem acesso.',

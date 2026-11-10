@@ -118,7 +118,20 @@ func (s *Service) revokePresence(ctx context.Context, q *dbgen.Queries, c state,
 	}
 	return emit(ctx, q, c.e.ID, actor, user, "checkin.revoked", ci.Version, str(ci.ID), "REVOKED", map[string]any{})
 }
-func (s *Service) Manage(ctx context.Context, a *identity.Session, eid, user, key, action, request string) (json.RawMessage, error) {
+func (s *Service) Manage(ctx context.Context, a *identity.Session, eid, user, key, action, request string, reasons ...string) (json.RawMessage, error) {
+	reason := ""
+	if len(reasons) > 0 {
+		reason = reasons[0]
+	}
+	switch reason {
+	case "", "ABUSE", "SPAM", "PRIVACY", "SAFETY", "OTHER":
+	default:
+		return nil, ErrInvalid
+	}
+	var intent any = user
+	if reason != "" {
+		intent = []string{user, reason}
+	}
 	if !id(user).Valid {
 		return nil, ErrInvalid
 	}
@@ -127,11 +140,11 @@ func (s *Service) Manage(ctx context.Context, a *identity.Session, eid, user, ke
 	default:
 		return nil, ErrInvalid
 	}
-	return s.run(ctx, a, eid, key, "member."+action, request, user, true, func(ctx context.Context, _ pgx.Tx, q *dbgen.Queries, c state) (any, error) {
+	return s.run(ctx, a, eid, key, "member."+action, request, intent, true, func(ctx context.Context, _ pgx.Tx, q *dbgen.Queries, c state) (any, error) {
 		if !c.owner(a.UserID) || user == a.UserID {
 			return nil, identity.ErrNotFound
 		}
-		if !c.open() {
+		if !c.open() && !(c.e.PublishedAt != nil && (action == "remove" || action == "block" || action == "unblock")) {
 			return nil, ErrState
 		}
 		m, err := member(ctx, q, eid, user)
@@ -220,7 +233,7 @@ func (s *Service) Manage(ctx context.Context, a *identity.Session, eid, user, ke
 				return nil, err
 			}
 		}
-		if err = emit(ctx, q, eid, a.UserID, user, event, m.Version, str(m.ID), m.State, map[string]any{"blocked": m.Blocked}); err != nil {
+		if err = emit(ctx, q, eid, a.UserID, user, event, m.Version, str(m.ID), m.State, map[string]any{"blocked": m.Blocked, "reason": reason}); err != nil {
 			return nil, err
 		}
 		return memberResult(ctx, q, m)

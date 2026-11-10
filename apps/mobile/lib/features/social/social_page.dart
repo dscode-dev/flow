@@ -9,7 +9,7 @@ import '../experiences/data/experiences_repository.dart';
 import '../explore/flow_playback.dart';
 import '../participation/participation_store.dart';
 import 'social_repository.dart';
-import 'social_media.dart';
+import 'social_widgets.dart';
 
 class SocialPage extends ConsumerStatefulWidget {
   const SocialPage({this.userId, this.postId, this.section, super.key});
@@ -26,6 +26,7 @@ class _SocialPageState extends ConsumerState<SocialPage>
   late ExperienceAccess _access;
   final _comment = TextEditingController();
   String _mode = 'DISCOVER';
+  bool _foreground = true;
 
   String get _path => widget.postId != null
       ? 'v1/social/posts/${widget.postId}'
@@ -68,6 +69,7 @@ class _SocialPageState extends ConsumerState<SocialPage>
   }
 
   Future<void> _load() async {
+    if (!mounted || !_foreground) return;
     await Future.wait([
       _store.resume(),
       if (_profile != null) _profile!.resume(),
@@ -84,6 +86,7 @@ class _SocialPageState extends ConsumerState<SocialPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
+    _foreground = s == AppLifecycleState.resumed;
     if (s == AppLifecycleState.resumed) {
       if (ModalRoute.of(context)?.isCurrent ?? false) unawaited(_load());
     } else {
@@ -194,125 +197,36 @@ class _SocialPageState extends ConsumerState<SocialPage>
     super.dispose();
   }
 
-  Widget _person(Map<String, dynamic> p, {Widget? trailing}) => ListTile(
-    contentPadding: EdgeInsets.zero,
-    leading: CircleAvatar(
-      child: Text(
-        (p['display_name'] as String? ?? '?').characters.firstOrNull ?? '?',
-      ),
+  Widget _person(Map<String, dynamic> p, {Widget? trailing}) =>
+      SocialAuthorTile(p, trailing: trailing, onOpen: _open);
+  Widget _post(Map<String, dynamic> p) => SocialPostCard(
+    p,
+    playback: _playback,
+    busy: _store.busy,
+    detail: widget.postId != null,
+    onOpen: _open,
+    onLike: () => _action(
+      p['liked'] == true ? 'DELETE' : 'PUT',
+      'v1/social/posts/${p['id']}/like',
     ),
-    title: Text(p['display_name'] as String? ?? 'Pessoa bloqueada'),
-    subtitle: p['handle'] != null ? Text('@${p['handle']}') : null,
-    trailing: trailing,
-    onTap: () => _open('/social/profiles/${p['user_id']}'),
+    onReport: () => _report('POST', p['id'] as String),
+    onEdit: () => _open('/social/posts/${p['id']}/edit'),
+    onDelete: () async {
+      if (!await _confirm('Excluir publicação?')) return;
+      final ok = await _store.command(
+        'DELETE',
+        'v1/social/posts/${p['id']}',
+        reload: false,
+      );
+      if (mounted && ok) {
+        if (widget.postId != null) {
+          context.pop();
+        } else {
+          await _load();
+        }
+      }
+    },
   );
-  Widget _post(Map<String, dynamic> p) {
-    final person = p['author'] as Map<String, dynamic>;
-    final media = (p['media'] as List).cast<Map<String, dynamic>>();
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _person(
-            person,
-            trailing: PopupMenuButton<String>(
-              tooltip: 'Ações da publicação',
-              onSelected: (v) async {
-                if (v == 'report') {
-                  await _report('POST', p['id'] as String);
-                } else if (v == 'edit') {
-                  await _open('/social/posts/${p['id']}/edit');
-                } else if (await _confirm('Excluir publicação?')) {
-                  final ok = await _store.command(
-                    'DELETE',
-                    'v1/social/posts/${p['id']}',
-                    reload: false,
-                  );
-                  if (mounted && ok) {
-                    if (widget.postId != null) {
-                      context.pop();
-                    } else {
-                      await _load();
-                    }
-                  }
-                }
-              },
-              itemBuilder: (_) => [
-                const PopupMenuItem(
-                  value: 'report',
-                  child: Text('Denunciar publicação'),
-                ),
-                if (p['can_manage'] == true) ...[
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: Text('Editar texto'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Excluir publicação'),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          Text(
-            '${DateTime.tryParse(p['created_at'] as String)?.toLocal().toString().substring(0, 16) ?? ''} · ${p['visibility'] == 'PUBLIC' ? 'Público' : 'Seguidores'}${p['edited_at'] != null ? ' · editado' : ''}',
-            style: Theme.of(context).textTheme.labelSmall,
-          ),
-          if ((p['body'] as String).isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                p['body'] as String,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-            ),
-          for (final m in media)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: SocialMedia(
-                p['id'] as String,
-                m,
-                playback: _playback,
-                key: ValueKey('${p['id']}:${m['id']}'),
-              ),
-            ),
-          if (p['experience_id'] != null)
-            TextButton.icon(
-              onPressed: () => _open('/experiences/${p['experience_id']}'),
-              icon: const Icon(Icons.event_outlined),
-              label: Text(p['experience_title'] as String),
-            ),
-          Wrap(
-            spacing: 8,
-            children: [
-              TextButton.icon(
-                onPressed: _store.busy
-                    ? null
-                    : () => _action(
-                        p['liked'] == true ? 'DELETE' : 'PUT',
-                        'v1/social/posts/${p['id']}/like',
-                      ),
-                icon: Icon(
-                  p['liked'] == true ? Icons.favorite : Icons.favorite_border,
-                ),
-                label: Text('${p['like_count']} curtidas'),
-              ),
-              TextButton.icon(
-                onPressed: widget.postId != null
-                    ? null
-                    : () => _open('/social/posts/${p['id']}'),
-                icon: const Icon(Icons.chat_bubble_outline),
-                label: Text('${p['comment_count']} comentários'),
-              ),
-            ],
-          ),
-          const Divider(),
-        ],
-      ),
-    );
-  }
 
   Widget _profileHeader() {
     final p = _profile?.document;
@@ -537,34 +451,40 @@ class _SocialPageState extends ConsumerState<SocialPage>
                           'Comentários',
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
-                        TextField(
-                          controller: _comment,
-                          maxLength: 1000,
-                          minLines: 1,
-                          maxLines: 4,
-                          decoration: const InputDecoration(
-                            labelText: 'Escreva um comentário',
+                        if (_store.document?['can_interact'] != false) ...[
+                          TextField(
+                            controller: _comment,
+                            maxLength: 1000,
+                            minLines: 1,
+                            maxLines: 4,
+                            decoration: const InputDecoration(
+                              labelText: 'Escreva um comentário',
+                            ),
                           ),
-                        ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: FilledButton(
-                            onPressed: _comments!.busy
-                                ? null
-                                : () async {
-                                    final ok = await _comments!.command(
-                                      'POST',
-                                      'v1/social/posts/${widget.postId}/comments',
-                                      body: {'body': _comment.text},
-                                    );
-                                    if (ok) {
-                                      _comment.clear();
-                                      await _store.load();
-                                    }
-                                  },
-                            child: const Text('Comentar'),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: FilledButton(
+                              onPressed: _comments!.busy
+                                  ? null
+                                  : () async {
+                                      final ok = await _comments!.command(
+                                        'POST',
+                                        'v1/social/posts/${widget.postId}/comments',
+                                        body: {'body': _comment.text},
+                                      );
+                                      if (ok) {
+                                        _comment.clear();
+                                        await _store.load();
+                                      }
+                                    },
+                              child: const Text('Comentar'),
+                            ),
                           ),
-                        ),
+                        ] else
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Text('Este espaço está em modo de leitura.'),
+                          ),
                         _status(_comments!),
                         for (final c in _comments!.rows)
                           Column(
@@ -580,6 +500,24 @@ class _SocialPageState extends ConsumerState<SocialPage>
                                         'COMMENT',
                                         c['id'] as String,
                                       );
+                                    } else if (v == 'hide') {
+                                      final reason = await socialReportReason(
+                                        context,
+                                      );
+                                      if (reason == null || !mounted) return;
+                                      await _comments!.command(
+                                        'POST',
+                                        'v1/experiences/${_store.document!['experience_id']}/space/moderation',
+                                        body: {
+                                          'target_type': 'COMMENT',
+                                          'target_id': c['id'],
+                                          'action': 'HIDE',
+                                          'reason': reason == 'ILLEGAL'
+                                              ? 'SAFETY'
+                                              : reason,
+                                        },
+                                      );
+                                      await _store.load();
                                     } else if (await _confirm(
                                       'Excluir comentário?',
                                     )) {
@@ -595,6 +533,15 @@ class _SocialPageState extends ConsumerState<SocialPage>
                                       value: 'report',
                                       child: Text('Denunciar comentário'),
                                     ),
+                                    if (_store
+                                            .document?['can_context_moderate'] ==
+                                        true)
+                                      const PopupMenuItem(
+                                        value: 'hide',
+                                        child: Text(
+                                          'Ocultar comentário no espaço',
+                                        ),
+                                      ),
                                     if (c['can_delete'] == true)
                                       const PopupMenuItem(
                                         value: 'delete',

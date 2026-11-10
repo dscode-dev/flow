@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flow.local/backend/internal/eventspace"
 	"flow.local/backend/internal/experiences"
 	"flow.local/backend/internal/identity"
 	identityhttp "flow.local/backend/internal/identity/transport"
@@ -77,8 +78,10 @@ func run(log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	socialHandler := social.NewHandler(social.New(deps.Postgres, mediaService, socialConfig), identityHandler)
-	server := &http.Server{Addr: c.Address, Handler: httpapi.New(log, deps, c.MaxBodyBytes, c.DependencyTimeout, draining.Load, identityHandler.Register, experiencesHandler.Register, participationHandler.Register, socialHandler.Register), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
+	socialService := social.New(deps.Postgres, mediaService, socialConfig)
+	socialHandler := social.NewHandler(socialService, identityHandler)
+	spaceHandler := eventspace.NewHandler(socialService, identityHandler)
+	server := &http.Server{Addr: c.Address, Handler: httpapi.New(log, deps, c.MaxBodyBytes, c.DependencyTimeout, draining.Load, identityHandler.Register, experiencesHandler.Register, participationHandler.Register, socialHandler.Register, spaceHandler.Register), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
 	done := make(chan error, 1)
 	go func() {
 		log.Info("api starting", "address", c.Address, "environment", c.Environment)

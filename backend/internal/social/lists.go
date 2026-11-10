@@ -73,15 +73,83 @@ func (s *Service) List(ctx context.Context, a *identity.Session, section, target
 	if !active {
 		return out, identity.ErrRestricted
 	}
-	if target != "" && section != "COMMENTS" {
+	if target != "" && section != "COMMENTS" && !strings.HasPrefix(section, "SPACE_") {
 		if e = connected(ctx, q, a.UserID, target); e != nil {
 			return out, e
+		}
+	}
+	if strings.HasPrefix(section, "SPACE_") {
+		ok, e := q.SpaceRead(ctx, dbgen.SpaceReadParams{Column1: id(target), Column2: id(a.UserID)})
+		if e != nil {
+			return out, e
+		}
+		if !ok {
+			return out, identity.ErrNotFound
+		}
+		if section == "SPACE_REPORTS" || section == "SPACE_HIDDEN" {
+			ok, e = q.SpaceModerate(ctx, dbgen.SpaceModerateParams{Column1: id(target), Column2: id(a.UserID)})
+			if e != nil {
+				return out, e
+			}
+			if !ok {
+				return out, identity.ErrNotFound
+			}
 		}
 	}
 	var ids []pgtype.UUID
 	var times []pgtype.Timestamptz
 	var docs [][]byte
 	switch section {
+	case "SPACE_FEED":
+		r, e := q.SpaceFeed(ctx, dbgen.SpaceFeedParams{Viewer: id(a.UserID), ExperienceID: id(target), Snapshot: ts(c.Snapshot), AfterTime: ts(c.Time), AfterID: id(c.ID), PageLimit: int32(limit + 1)})
+		if e != nil {
+			return out, e
+		}
+		for _, r := range r {
+			ids = append(ids, r.ID)
+			times = append(times, r.CreatedAt)
+			docs = append(docs, r.Document)
+		}
+	case "SPACE_GALLERY":
+		r, e := q.SpaceGallery(ctx, dbgen.SpaceGalleryParams{Viewer: id(a.UserID), ExperienceID: id(target), Snapshot: ts(c.Snapshot), AfterTime: ts(c.Time), AfterID: id(c.ID), PageLimit: int32(limit + 1)})
+		if e != nil {
+			return out, e
+		}
+		for _, r := range r {
+			ids = append(ids, r.ID)
+			times = append(times, r.CreatedAt)
+			docs = append(docs, r.Document)
+		}
+	case "SPACE_PARTICIPANTS":
+		r, e := q.SpaceParticipants(ctx, dbgen.SpaceParticipantsParams{Viewer: id(a.UserID), ExperienceID: id(target), Snapshot: ts(c.Snapshot), AfterTime: ts(c.Time), AfterID: id(c.ID), PageLimit: int32(limit + 1)})
+		if e != nil {
+			return out, e
+		}
+		for _, r := range r {
+			ids = append(ids, r.ID)
+			times = append(times, r.CreatedAt)
+			docs = append(docs, r.Document)
+		}
+	case "SPACE_REPORTS":
+		r, e := q.SpaceReports(ctx, dbgen.SpaceReportsParams{Viewer: id(a.UserID), ExperienceID: id(target), Snapshot: ts(c.Snapshot), AfterTime: ts(c.Time), AfterID: id(c.ID), PageLimit: int32(limit + 1)})
+		if e != nil {
+			return out, e
+		}
+		for _, r := range r {
+			ids = append(ids, r.ID)
+			times = append(times, r.CreatedAt)
+			docs = append(docs, r.Document)
+		}
+	case "SPACE_HIDDEN":
+		r, e := q.SpaceHidden(ctx, dbgen.SpaceHiddenParams{Viewer: id(a.UserID), ExperienceID: id(target), Snapshot: ts(c.Snapshot), AfterTime: ts(c.Time), AfterID: id(c.ID), PageLimit: int32(limit + 1)})
+		if e != nil {
+			return out, e
+		}
+		for _, r := range r {
+			ids = append(ids, r.ID)
+			times = append(times, r.CreatedAt)
+			docs = append(docs, r.Document)
+		}
 	case "DISCOVER", "FOLLOWING", "PROFILE":
 		r, e := q.SocialFeed(ctx, dbgen.SocialFeedParams{Viewer: id(a.UserID), Snapshot: ts(c.Snapshot), AfterTime: ts(c.Time), AfterID: id(c.ID), Profile: id(target), Mode: section, PageLimit: int32(limit + 1)})
 		if e != nil {
@@ -148,8 +216,19 @@ func (s *Service) List(ctx context.Context, a *identity.Session, section, target
 		if e != nil {
 			return out, e
 		}
-		if section == "DISCOVER" || section == "FOLLOWING" || section == "PROFILE" {
+		if section == "DISCOVER" || section == "FOLLOWING" || section == "PROFILE" || section == "SPACE_FEED" {
 			s.decorate(d, a)
+		}
+		if section == "SPACE_GALLERY" {
+			post := d["post"].(map[string]any)
+			s.decorate(post, a)
+			media := post["media"].([]any)
+			for _, m := range media {
+				if m.(map[string]any)["id"] == d["id"] {
+					post["media"] = []any{m}
+					break
+				}
+			}
 		}
 		out.Items = append(out.Items, d)
 	}

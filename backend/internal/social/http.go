@@ -30,7 +30,7 @@ func respond(w http.ResponseWriter, out any, e error, r *http.Request) {
 		if f.Status == 429 {
 			w.Header().Set("Retry-After", "60")
 		}
-		message := map[string]string{"invalid_request": "Requisição inválida.", "not_found": "Conteúdo indisponível ou sem acesso.", "social_content_invalid": "Confira o conteúdo e os limites da publicação.", "version_conflict": "A publicação mudou. Atualize antes de editar.", "precondition_required": "Informe a versão atual.", "idempotency_conflict": "Esta tentativa já foi recebida com outros dados.", "rate_limited": "Aguarde antes de tentar novamente.", "account_restricted": "Conta indisponível para o Social."}[f.Code]
+		message := map[string]string{"invalid_request": "Requisição inválida.", "not_found": "Conteúdo indisponível ou sem acesso.", "social_content_invalid": "Confira o conteúdo e os limites da publicação.", "version_conflict": "A publicação mudou. Atualize antes de editar.", "precondition_required": "Informe a versão atual.", "idempotency_conflict": "Esta tentativa já foi recebida com outros dados.", "rate_limited": "Aguarde antes de tentar novamente.", "account_restricted": "Conta indisponível para o Social.", "space_read_only": "Este espaço está em modo de leitura ou suas interações estão restritas."}[f.Code]
 		if message == "" {
 			message = "Não foi possível concluir a operação."
 		}
@@ -285,4 +285,14 @@ func (h *Handler) Register(r chi.Router) {
 			respond(w, out, e, r)
 		})
 	})
+}
+
+// Shared transport boundary for contextual Social modules; identical strict JSON/errors.
+func Respond(w http.ResponseWriter, out any, e error, r *http.Request) { respond(w, out, e, r) }
+func Decode(w http.ResponseWriter, r *http.Request, out any, required ...string) bool {
+	return decode(w, r, out, required...)
+}
+func PageQuery(r *http.Request) (string, int, error) {
+	_, raw, n, e := query(r, false)
+	return raw, n, e
 }

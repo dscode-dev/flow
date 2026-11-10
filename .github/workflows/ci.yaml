@@ -53,5 +53,6 @@ jobs:
           cache: true
       - run: make identity-mobile-contract FLUTTER=flutter
       - run: make experiences-mobile-contract FLUTTER=flutter
+      - run: make event-space-mobile-contract FLUTTER=flutter
       - if: always()
         run: docker compose --env-file .env -f infra/compose/compose.yaml down

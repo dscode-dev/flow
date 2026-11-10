@@ -10,7 +10,7 @@ SELECT social.experience_eligible($1::uuid,$2::uuid,$3::uuid)::boolean;
 SELECT social.post_document($1::uuid,$2::uuid)::jsonb AS document;
 -- name: SocialFeed :many
 SELECT p.created_at,p.id,social.post_document(p.id,sqlc.arg(viewer)::uuid)::jsonb AS document FROM social.posts p
-WHERE p.deleted_at IS NULL AND p.moderation_status='VISIBLE' AND p.created_at<=sqlc.arg(snapshot)::timestamptz
+WHERE p.context<>'EVENT_SPACE' AND p.deleted_at IS NULL AND p.moderation_status='VISIBLE' AND p.created_at<=sqlc.arg(snapshot)::timestamptz
 AND (p.created_at,p.id)<(sqlc.arg(after_time)::timestamptz,sqlc.arg(after_id)::uuid)
 AND (sqlc.arg(profile)::uuid IS NULL OR p.author_user_id=sqlc.arg(profile))
 AND (sqlc.arg(mode)::text<>'DISCOVER' OR p.visibility='PUBLIC')
@@ -39,7 +39,7 @@ UPDATE social.comments SET deleted_at=now(),body='' WHERE id=$1 AND deleted_at I
 -- name: SocialComments :many
 SELECT c.id,c.created_at,jsonb_build_object('id',c.id,'post_id',c.post_id,'author',social.person(c.author_user_id),'body',c.body,'created_at',c.created_at,'can_delete',c.author_user_id=sqlc.arg(viewer)::uuid OR p.author_user_id=sqlc.arg(viewer))::jsonb AS document
 FROM social.comments c JOIN social.posts p ON p.id=c.post_id WHERE c.post_id=sqlc.arg(post_id) AND social.can_read(c.post_id,sqlc.arg(viewer))
-AND c.deleted_at IS NULL AND c.moderation_status='VISIBLE' AND social.connected(c.author_user_id,sqlc.arg(viewer)) AND social.connected(c.author_user_id,p.author_user_id)
+AND c.deleted_at IS NULL AND c.moderation_status='VISIBLE' AND NOT c.local_hidden AND social.interaction_visible(c.post_id,c.author_user_id,sqlc.arg(viewer))
 AND c.created_at<=sqlc.arg(snapshot)::timestamptz AND (c.created_at,c.id)<(sqlc.arg(after_time)::timestamptz,sqlc.arg(after_id)::uuid)
 ORDER BY c.created_at DESC,c.id DESC LIMIT sqlc.arg(page_limit);
 -- name: SocialFollow :execrows
@@ -58,7 +58,7 @@ SELECT EXISTS(SELECT FROM social.blocks WHERE blocker_id=$1 AND blocked_id=$2);
 SELECT (social.person(sqlc.arg(profile)::uuid) || jsonb_build_object(
 'is_self',sqlc.arg(profile)=sqlc.arg(viewer)::uuid,'following',EXISTS(SELECT FROM social.follows WHERE follower_id=sqlc.arg(viewer) AND followed_id=sqlc.arg(profile)),
 'follows_you',EXISTS(SELECT FROM social.follows WHERE follower_id=sqlc.arg(profile) AND followed_id=sqlc.arg(viewer)),
-'post_count',(SELECT count(*) FROM social.posts p WHERE p.author_user_id=sqlc.arg(profile) AND social.can_read(p.id,sqlc.arg(viewer))),
+'post_count',(SELECT count(*) FROM social.posts p WHERE p.author_user_id=sqlc.arg(profile) AND p.context<>'EVENT_SPACE' AND social.can_read(p.id,sqlc.arg(viewer))),
 'follower_count',(SELECT count(*) FROM social.follows f WHERE f.followed_id=sqlc.arg(profile) AND social.connected(f.follower_id,sqlc.arg(viewer)) AND social.connected(f.follower_id,sqlc.arg(profile))),
 'following_count',(SELECT count(*) FROM social.follows f WHERE f.follower_id=sqlc.arg(profile) AND social.connected(f.followed_id,sqlc.arg(viewer)) AND social.connected(f.followed_id,sqlc.arg(profile)))))::jsonb AS document
 WHERE social.connected(sqlc.arg(profile),sqlc.arg(viewer));

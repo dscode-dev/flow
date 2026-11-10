@@ -19,8 +19,8 @@ import 'social_media.dart';
 import '../explore/flow_playback.dart';
 
 class SocialComposePage extends ConsumerStatefulWidget {
-  const SocialComposePage({this.id, super.key});
-  final String? id;
+  const SocialComposePage({this.id, this.spaceId, super.key});
+  final String? id, spaceId;
   @override
   ConsumerState<SocialComposePage> createState() => _SocialComposePageState();
 }
@@ -58,6 +58,11 @@ class _SocialComposePageState extends ConsumerState<SocialComposePage>
     _access.addListener(_account);
     _options = ref.read(socialStoreProvider('v1/social/experience-options'));
     WidgetsBinding.instance.addObserver(this);
+    if (widget.spaceId != null) {
+      _context = "EVENT_SPACE";
+      _visibility = "SPACE";
+      _experience = widget.spaceId;
+    }
     _load();
   }
 
@@ -68,6 +73,7 @@ class _SocialComposePageState extends ConsumerState<SocialComposePage>
     _text.clear();
     _clearMedia();
     _options.pause();
+    _configured = false;
     _experience = null;
     _current = null;
     _expected = null;
@@ -83,10 +89,21 @@ class _SocialComposePageState extends ConsumerState<SocialComposePage>
     try {
       final repo = ref.read(socialRepositoryProvider);
       final limits = await repo.request('GET', 'v1/social/limits', cancel: c);
+      if (widget.spaceId != null) {
+        final space = await repo.request(
+          'GET',
+          'v1/experiences/${widget.spaceId}/space',
+          cancel: c,
+        );
+        if ((space['capabilities'] as Map)['can_write'] != true) {
+          throw const ExperienceIssue('space_read_only');
+        }
+      }
       if (!mounted || g != _revision) return;
       setState(() {
         _bodyLimit = limits['body_limit'] as int;
         _mediaLimit = limits['media_limit'] as int;
+        _experience = widget.spaceId ?? _experience;
         _configured = true;
       });
       if (widget.id != null) {
@@ -97,6 +114,9 @@ class _SocialComposePageState extends ConsumerState<SocialComposePage>
         );
         if (!mounted || g != _revision) return;
         if (p['can_manage'] != true) throw const ExperienceIssue('not_found');
+        if (p['can_interact'] == false) {
+          throw const ExperienceIssue('space_read_only');
+        }
         setState(() {
           if (_current == null && !_dirty) _text.text = p['body'] as String;
           _current = p;
@@ -192,7 +212,8 @@ class _SocialComposePageState extends ConsumerState<SocialComposePage>
         : {
             'context': _context,
             'visibility': _visibility,
-            'experience_id': _context == 'EXPERIENCE_PUBLIC'
+            'experience_id':
+                _context == 'EXPERIENCE_PUBLIC' || _context == 'EVENT_SPACE'
                 ? _experience
                 : null,
             'body': _text.text,
@@ -368,82 +389,90 @@ class _SocialComposePageState extends ConsumerState<SocialComposePage>
                     ),
                   ),
                   if (widget.id == null) ...[
-                    DropdownButtonFormField<String>(
-                      initialValue: _visibility,
-                      decoration: const InputDecoration(
-                        labelText: 'Quem pode ver',
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'PUBLIC',
-                          child: Text('Público'),
+                    if (widget.spaceId == null) ...[
+                      DropdownButtonFormField<String>(
+                        initialValue: _visibility,
+                        decoration: const InputDecoration(
+                          labelText: 'Quem pode ver',
                         ),
-                        DropdownMenuItem(
-                          value: 'FOLLOWERS',
-                          child: Text('Seguidores'),
-                        ),
-                      ],
-                      onChanged: (v) => setState(() {
-                        _visibility = v!;
-                        _dirty = true;
-                      }),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      initialValue: _context,
-                      decoration: const InputDecoration(labelText: 'Contexto'),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'PERSONAL',
-                          child: Text('Pessoal'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'EXPERIENCE_PUBLIC',
-                          child: Text('Experiência pública'),
-                        ),
-                      ],
-                      onChanged: (v) {
-                        setState(() {
-                          _context = v!;
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'PUBLIC',
+                            child: Text('Público'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'FOLLOWERS',
+                            child: Text('Seguidores'),
+                          ),
+                        ],
+                        onChanged: (v) => setState(() {
+                          _visibility = v!;
                           _dirty = true;
-                        });
-                        if (v == 'EXPERIENCE_PUBLIC') _chooseExperience();
-                      },
-                    ),
-                    if (_context == 'EXPERIENCE_PUBLIC')
-                      ListenableBuilder(
-                        listenable: _options,
-                        builder: (context, _) => Column(
-                          children: [
-                            if (_options.loading)
-                              const LinearProgressIndicator(),
-                            for (final e in _options.rows)
-                              CheckboxListTile(
-                                title: Text(e['title'] as String),
-                                value: _experience == e['id'],
-                                onChanged: (v) => setState(
-                                  () => _experience = v == true
-                                      ? e['id'] as String
-                                      : null,
+                        }),
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        initialValue: _context,
+                        decoration: const InputDecoration(
+                          labelText: 'Contexto',
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'PERSONAL',
+                            child: Text('Pessoal'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'EXPERIENCE_PUBLIC',
+                            child: Text('Experiência pública'),
+                          ),
+                        ],
+                        onChanged: (v) {
+                          setState(() {
+                            _context = v!;
+                            _dirty = true;
+                          });
+                          if (v == 'EXPERIENCE_PUBLIC') _chooseExperience();
+                        },
+                      ),
+                      if (_context == 'EXPERIENCE_PUBLIC')
+                        ListenableBuilder(
+                          listenable: _options,
+                          builder: (context, _) => Column(
+                            children: [
+                              if (_options.loading)
+                                const LinearProgressIndicator(),
+                              for (final e in _options.rows)
+                                CheckboxListTile(
+                                  title: Text(e['title'] as String),
+                                  value: _experience == e['id'],
+                                  onChanged: (v) => setState(
+                                    () => _experience = v == true
+                                        ? e['id'] as String
+                                        : null,
+                                  ),
+                                ),
+                              if (_options.rows.isEmpty && !_options.loading)
+                                const Text(
+                                  'Nenhuma experiência pública elegível. Você precisa organizar ou ter participação confirmada.',
+                                ),
+                              if (_options.issue != null)
+                                Text(socialMessage(_options.issue)),
+                              TextButton(
+                                onPressed: () => _options.load(
+                                  more: _options.cursor != null,
+                                ),
+                                child: Text(
+                                  _options.cursor != null
+                                      ? 'Mais experiências'
+                                      : 'Atualizar experiências',
                                 ),
                               ),
-                            if (_options.rows.isEmpty && !_options.loading)
-                              const Text(
-                                'Nenhuma experiência pública elegível. Você precisa organizar ou ter participação confirmada.',
-                              ),
-                            if (_options.issue != null)
-                              Text(socialMessage(_options.issue)),
-                            TextButton(
-                              onPressed: () =>
-                                  _options.load(more: _options.cursor != null),
-                              child: Text(
-                                _options.cursor != null
-                                    ? 'Mais experiências'
-                                    : 'Atualizar experiências',
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                    ] else
+                      const Text(
+                        'Somente pessoas autorizadas nesta experiência podem ver e interagir com esta publicação.',
                       ),
                     const SizedBox(height: 16),
                     Wrap(
@@ -562,8 +591,10 @@ class _SocialComposePageState extends ConsumerState<SocialComposePage>
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Publicações públicas podem circular entre pessoas da plataforma. Só publique conteúdo que você tem autorização para compartilhar. O rascunho permanece nesta tela até sair ou trocar de conta.',
+                  Text(
+                    widget.spaceId != null
+                        ? 'Conteúdo exclusivo do Event Space. Não compartilhe cópias sem autorização das pessoas envolvidas.'
+                        : 'Publicações públicas podem circular entre pessoas da plataforma. Só publique conteúdo que você tem autorização para compartilhar. O rascunho permanece nesta tela até sair ou trocar de conta.',
                   ),
                 ],
               ),

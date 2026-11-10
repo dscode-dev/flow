@@ -159,6 +159,7 @@ type Querier interface {
 	SocialBlocks(ctx context.Context, arg SocialBlocksParams) ([]SocialBlocksRow, error)
 	SocialCleanup(ctx context.Context) error
 	SocialComment(ctx context.Context, arg SocialCommentParams) error
+	SocialCommentPost(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error)
 	SocialComments(ctx context.Context, arg SocialCommentsParams) ([]SocialCommentsRow, error)
 	SocialConnected(ctx context.Context, arg SocialConnectedParams) (bool, error)
 	SocialDeleteComment(ctx context.Context, id pgtype.UUID) error
@@ -169,6 +170,7 @@ type Querier interface {
 	SocialFeed(ctx context.Context, arg SocialFeedParams) ([]SocialFeedRow, error)
 	SocialFollow(ctx context.Context, arg SocialFollowParams) (int64, error)
 	SocialInsertPost(ctx context.Context, arg SocialInsertPostParams) error
+	SocialInteractionVisible(ctx context.Context, arg SocialInteractionVisibleParams) (bool, error)
 	SocialLike(ctx context.Context, arg SocialLikeParams) (int64, error)
 	SocialLockComment(ctx context.Context, id pgtype.UUID) (SocialComment, error)
 	SocialLockPost(ctx context.Context, id pgtype.UUID) (SocialPost, error)
@@ -180,6 +182,7 @@ type Querier interface {
 	SocialPairLock(ctx context.Context, arg SocialPairLockParams) error
 	SocialPeople(ctx context.Context, arg SocialPeopleParams) ([]SocialPeopleRow, error)
 	SocialPost(ctx context.Context, arg SocialPostParams) ([]byte, error)
+	SocialPostScope(ctx context.Context, id pgtype.UUID) (SocialPostScopeRow, error)
 	SocialProfile(ctx context.Context, arg SocialProfileParams) ([]byte, error)
 	SocialRate(ctx context.Context, userID pgtype.UUID) (int32, error)
 	SocialReceipt(ctx context.Context, arg SocialReceiptParams) (SocialReceipt, error)
@@ -191,6 +194,24 @@ type Querier interface {
 	SocialUnblock(ctx context.Context, arg SocialUnblockParams) (int64, error)
 	SocialUnfollow(ctx context.Context, arg SocialUnfollowParams) (int64, error)
 	SocialUnlike(ctx context.Context, arg SocialUnlikeParams) (int64, error)
+	SpaceFeed(ctx context.Context, arg SpaceFeedParams) ([]SpaceFeedRow, error)
+	SpaceGallery(ctx context.Context, arg SpaceGalleryParams) ([]SpaceGalleryRow, error)
+	SpaceHidden(ctx context.Context, arg SpaceHiddenParams) ([]SpaceHiddenRow, error)
+	SpaceMember(ctx context.Context, arg SpaceMemberParams) (SpaceMemberRow, error)
+	SpaceModerate(ctx context.Context, arg SpaceModerateParams) (bool, error)
+	SpaceParticipants(ctx context.Context, arg SpaceParticipantsParams) ([]SpaceParticipantsRow, error)
+	SpaceRead(ctx context.Context, arg SpaceReadParams) (bool, error)
+	SpaceReportTarget(ctx context.Context, id pgtype.UUID) (SpaceReportTargetRow, error)
+	SpaceReports(ctx context.Context, arg SpaceReportsParams) ([]SpaceReportsRow, error)
+	SpaceReviewReport(ctx context.Context, arg SpaceReviewReportParams) error
+	SpaceSetCommentHidden(ctx context.Context, arg SpaceSetCommentHiddenParams) error
+	SpaceSetModerator(ctx context.Context, arg SpaceSetModeratorParams) error
+	SpaceSetPaused(ctx context.Context, arg SpaceSetPausedParams) error
+	SpaceSetPlatformSuspended(ctx context.Context, arg SpaceSetPlatformSuspendedParams) error
+	SpaceSetPostHidden(ctx context.Context, arg SpaceSetPostHiddenParams) error
+	SpaceSetRestriction(ctx context.Context, arg SpaceSetRestrictionParams) error
+	SpaceSummary(ctx context.Context, arg SpaceSummaryParams) ([]byte, error)
+	SpaceWrite(ctx context.Context, arg SpaceWriteParams) (bool, error)
 	SupersedePhoneChallenges(ctx context.Context, subjectRef pgtype.Text) error
 	TouchAuthenticatedUser(ctx context.Context, id pgtype.UUID) error
 	TouchIdentitySession(ctx context.Context, id pgtype.UUID) error

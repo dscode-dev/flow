@@ -49,6 +49,11 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Println("JSON Schema válido: Social payload v1")
+	if err := validateSchema(filepath.Join(base, "events", "event-space-payload.schema.json")); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	fmt.Println("JSON Schema válido: Event Space payload v1")
 }
 
 func validateSchema(path string) error {

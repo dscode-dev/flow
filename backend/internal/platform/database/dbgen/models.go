@@ -8,6 +8,35 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type EventSpaceModerator struct {
+	ExperienceID pgtype.UUID
+	UserID       pgtype.UUID
+	Active       bool
+	UpdatedAt    pgtype.Timestamptz
+}
+
+type EventSpaceReportReview struct {
+	ReportID     pgtype.UUID
+	ExperienceID pgtype.UUID
+	ReviewedBy   pgtype.UUID
+	ReviewedAt   pgtype.Timestamptz
+}
+
+type EventSpaceRestriction struct {
+	ExperienceID pgtype.UUID
+	UserID       pgtype.UUID
+	Restricted   bool
+	UpdatedAt    pgtype.Timestamptz
+}
+
+type EventSpaceSetting struct {
+	ExperienceID      pgtype.UUID
+	Paused            bool
+	PlatformSuspended bool
+	Version           int64
+	UpdatedAt         pgtype.Timestamptz
+}
+
 type ExperiencesAuditEvent struct {
 	ID           pgtype.UUID
 	ExperienceID pgtype.UUID
@@ -451,6 +480,7 @@ type SocialComment struct {
 	CreatedAt        pgtype.Timestamptz
 	DeletedAt        pgtype.Timestamptz
 	ModerationStatus string
+	LocalHidden      bool
 }
 
 type SocialFollow struct {
@@ -478,6 +508,7 @@ type SocialPost struct {
 	DeletedAt        pgtype.Timestamptz
 	ModerationStatus string
 	Version          int64
+	LocalHidden      bool
 }
 
 type SocialPostMedium struct {
