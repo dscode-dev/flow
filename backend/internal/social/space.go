@@ -228,6 +228,13 @@ func (s *Service) SpaceList(ctx context.Context, a *identity.Session, eid, secti
 func reportSpaceGuard(a *identity.Session, in Report) func(context.Context, pgx.Tx, *dbgen.Queries) error {
 	return func(ctx context.Context, tx pgx.Tx, q *dbgen.Queries) error {
 		pid := in.TargetID
+		if in.TargetType == "CHAT_MESSAGE" {
+			eid, e := q.ChatMessageSpace(ctx, id(in.TargetID))
+			if e != nil {
+				return identity.ErrNotFound
+			}
+			return spaceGuard(a, str(eid), false)(ctx, tx, q)
+		}
 		if in.TargetType == "USER" {
 			return nil
 		}

@@ -1,16 +1,39 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:flow:realtime:envelope:v1",
-  "title": "Convenção futura, sem servidor WebSocket no PR-00",
+  "title": "Flow realtime envelope v1 \u2014 implemented for Event Space Chat",
   "type": "object",
   "additionalProperties": false,
-  "required": ["message_id", "type", "version", "sent_at", "payload"],
+  "required": [
+    "message_id",
+    "type",
+    "version",
+    "sent_at",
+    "payload"
+  ],
   "properties": {
-    "message_id": {"type": "string", "format": "uuid"},
-    "type": {"type": "string", "maxLength": 150},
-    "version": {"type": "integer", "minimum": 1},
-    "sent_at": {"type": "string", "format": "date-time"},
-    "correlation_id": {"type": "string", "maxLength": 64},
-    "payload": {"type": "object"}
+    "message_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string",
+      "maxLength": 150
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "sent_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlation_id": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "payload": {
+      "type": "object"
+    }
   }
 }

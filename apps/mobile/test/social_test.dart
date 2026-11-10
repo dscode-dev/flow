@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:flow_mobile/features/event_space/chat_socket.dart';
+import 'package:flow_mobile/features/event_space/chat_controller.dart';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -154,6 +157,7 @@ Future<(ProviderContainer, Rig)> mount(
   SocialFixture repo,
   String path, {
   List<TestPlayer>? players,
+  ChatConnector? chatConnector,
 }) async {
   final rig = Rig();
   await rig.login(completed: true);
@@ -162,6 +166,8 @@ Future<(ProviderContainer, Rig)> mount(
   final container = ProviderContainer(
     overrides: [
       authControllerProvider.overrideWithValue(rig.auth),
+      if (chatConnector != null)
+        chatConnectorProvider.overrideWithValue(chatConnector),
       httpClientProvider.overrideWithValue(
         Dio(BaseOptions(baseUrl: 'https://test.invalid/')),
       ),

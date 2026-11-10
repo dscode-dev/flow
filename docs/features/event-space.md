@@ -61,3 +61,7 @@ Direitos de exclusão: autor pode apagar seu post contextual conhecido mesmo dep
 Diagnosticar: sessão → Experience/conta/moderação → Participation/blocks → papel/restrição/pausa → post/local/global/deleção → asset/processamento → capability/expiração → S3. Logs categóricos/request_id sem body, tokens, telefone, URL ou UUIDs desnecessários. Probes/latência e idade de fila existentes; métricas/painéis específicos/carga real são pendências operacionais, não homologação.
 
 PR-09 deverá reutilizar UUID/ACL/lock e revogação; consumir eventos com event_id deduplicado, verificar estado atual antes de entregar mensagens ou notificar, revalidar sessões de conexões ativas e limitar presença efêmera. Não transportar participantes/copiar autorização para claims permanentes. Este PR não entrega mensagens, WebSocket de chat, presença, DM ou push.
+
+## Extensão PR-09 — Chat
+
+A aba Chat foi implementada com histórico, WebSocket, reconciliação e moderação próprios, reutilizando a autorização acima. Mural/mídia/participantes mantêm os contratos anteriores. [Operação, limites e retenção do chat](chat.md), [ADR0014](../decisions/0014-chat-persistence-realtime.md). Não confundir remoção definitiva de mensagem com ocultação/restauração de post.

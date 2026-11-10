@@ -206,3 +206,17 @@ Finalidade: compartilhar conteúdo no contexto de uma experiência com pessoas a
 | Galeria e capacidades | Referências aos mesmos objetos privados Social, autorização atual a cada GET/range; ocultação/removal/bloqueio retira novas leituras | Capability30s e cache de tela≤30s nominal. Bytes já baixados/copias externas não podem ser recuperados remotamente. Mesma limpeza S3/órfãos/tombstones do Social |
 
 Removido continua podendo excluir seu post e seu próprio comentário conhecido conforme regras de sessão/contenção; não recupera acesso ao conteúdo de terceiros. Retorno elegível pode reexibir conteúdo histórico, sem restauração automática de papéis. Nenhum chat, presença contínua, push, DM, WebRTC ou P2P neste ciclo. Direitos, exportação/eliminação de conta, backup, preservação legal e política de menores continuam dependências de governança, sem declarar conformidade automática.
+
+## Chat textual — PR-09
+
+Finalidade: conversa contextual entre pessoas atualmente autorizadas no Event Space. Plataforma processa texto para persistência, entrega e moderação; **sem E2EE**. Produção exige TLS/WSS e controles de banco/backups/operação. Sem telefone, provedor, mídia, localização individual, check-in ou presença física. [Política completa](../features/chat.md).
+
+| Dado | Destinatário e autorização | Retenção e exclusão |
+| --- | --- | --- |
+| Texto/autor público/UUID/created sequence | Organizador e CONFIRMED elegíveis, sujeito a blocks/conta/moderação atuais; nenhum visitante/convite pendente recebe histórico | Body90dias desde criação, filtrado na leitura e apagado pelo worker em lotes; autor/moderador autorizado apaga body no comando. WITHHELD global é separado e não restaura texto excluído |
+| Client UUID/hash e change sequence | Idempotência/ordenação/recuperação; client UUID só retornado ao próprio autor | Metadados/changes180dias desde alteração pertinente, limpeza incremental limitada; contador da sala fica sem UGC. Não prometer deduplicação após expurgo do registro |
+| Leases/socket/clock de política | Apenas controle de recursos/revalidação entre instâncias; sem lista pública de presença/last seen | Lease15s renovada5s e removida após desconexão/expiração; sem histórico de conexão para analytics. Clock conserva somente contador global sem PII |
+| Reports/audit/outbox | Mesmos agregados Social/eventos mínimos; operador separado com caso; leitura sensível auditada | Reports/audit180dias; outbox segue governança compartilhada, sem texto/credencial ou heartbeat. Revisão local não expõe denunciante nem encerra decisão global |
+| Histórico/cache/pendência/rascunho Flutter | Memória por conta/espaço, conexão atual revalidada; nenhuma fila em disco | Histórico apagado em saída/background/perda de conexão/autoridade. Pendências/rascunhos próprios em RAM para reconciliar; logout/troca de conta/revogação apagam tudo. Bytes já obtidos externamente não podem ser recolhidos |
+
+Tokens ficam em cabeçalho/memória do transporte, sem query/log. Revogação periódica tem latência e operações já em trânsito; não declarar instantaneidade. Política de backup, direitos de exportação/eliminação de conta/Experience, base legal, menores e retenção legal continuam dependentes de governança antes de produção. Não há DM, mídia/voz, E2EE, P2P, push ou analytics de presença neste ciclo.

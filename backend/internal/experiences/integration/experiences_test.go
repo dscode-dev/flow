@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"flow.local/backend/internal/chat"
 	"flow.local/backend/internal/eventspace"
 	"flow.local/backend/internal/experiences"
 	"flow.local/backend/internal/identity"
@@ -90,6 +91,20 @@ func TestMain(m *testing.M) {
 
 	boundaryPost := uuid.NewString()
 	if _, e = db.Exec("INSERT INTO social.posts(id,author_user_id,context,visibility,body) VALUES($1,$2,'PERSONAL','PUBLIC','Preservar Social PR07')", boundaryPost, marker); e != nil {
+		panic(e)
+	}
+
+	if _, e = db.Exec("INSERT INTO event_space.settings(experience_id) VALUES($1)", boundaryExperience); e != nil {
+		panic(e)
+	}
+	if e = goose.DownTo(db, "../../../migrations", 10); e != nil {
+		panic(e)
+	}
+	var chatBoundary bool
+	if e = db.QueryRow("SELECT to_regnamespace('chat') IS NULL AND EXISTS(SELECT FROM event_space.settings WHERE experience_id=$1) AND EXISTS(SELECT FROM social.posts WHERE id=$2)", boundaryExperience, boundaryPost).Scan(&chatBoundary); e != nil || !chatBoundary {
+		panic("Chat rollback affected Event Space/Social")
+	}
+	if e = goose.Up(db, "../../../migrations"); e != nil {
 		panic(e)
 	}
 	if e = goose.DownTo(db, "../../../migrations", 9); e != nil {
@@ -251,7 +266,11 @@ func newHarness(t *testing.T, limits ...int) *harness {
 	socialService := social.New(pool, ms, soc)
 	sh := social.NewHandler(socialService, auth)
 	eh := eventspace.NewHandler(socialService, auth)
-	server := httptest.NewServer(httpapi.New(slog.New(slog.NewTextHandler(io.Discard, nil)), checker{}, 1<<20, time.Second, func() bool { return false }, auth.Register, handler.Register, ph.Register, sh.Register, eh.Register))
+	chatConfig, _ := chat.ParseConfig(key)
+	chatConfig.Poll = 40 * time.Millisecond
+	ch := chat.NewHandler(chat.New(pool, chatConfig), auth)
+	t.Cleanup(ch.Shutdown)
+	server := httptest.NewServer(httpapi.New(slog.New(slog.NewTextHandler(io.Discard, nil)), checker{}, 1<<20, time.Second, func() bool { return false }, auth.Register, handler.Register, ph.Register, sh.Register, eh.Register, ch.Register))
 	t.Cleanup(server.Close)
 	return &harness{server, es, ms}
 }

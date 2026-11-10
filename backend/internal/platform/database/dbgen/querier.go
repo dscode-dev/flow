@@ -15,6 +15,24 @@ type Querier interface {
 	AppendOutbox(ctx context.Context, arg AppendOutboxParams) error
 	AttemptIdentityChallenge(ctx context.Context, arg AttemptIdentityChallengeParams) error
 	CanAccessParticipationExperience(ctx context.Context, arg CanAccessParticipationExperienceParams) (bool, error)
+	ChatChange(ctx context.Context, arg ChatChangeParams) error
+	ChatChanges(ctx context.Context, arg ChatChangesParams) ([]ChatChangesRow, error)
+	ChatCleanup(ctx context.Context) error
+	ChatConnectionCount(ctx context.Context, arg ChatConnectionCountParams) (int32, error)
+	ChatDisconnect(ctx context.Context, id pgtype.UUID) error
+	ChatDocument(ctx context.Context, arg ChatDocumentParams) ([]byte, error)
+	ChatFindClient(ctx context.Context, arg ChatFindClientParams) (ChatFindClientRow, error)
+	ChatHistory(ctx context.Context, arg ChatHistoryParams) ([]ChatHistoryRow, error)
+	ChatInsert(ctx context.Context, arg ChatInsertParams) error
+	ChatLease(ctx context.Context, arg ChatLeaseParams) error
+	ChatLockMessage(ctx context.Context, id pgtype.UUID) (ChatMessage, error)
+	ChatMessageSpace(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error)
+	ChatModerate(ctx context.Context, arg ChatModerateParams) error
+	ChatNext(ctx context.Context, experienceID pgtype.UUID) (int64, error)
+	ChatOperationalMessages(ctx context.Context, experienceID pgtype.UUID) ([][]byte, error)
+	ChatRemove(ctx context.Context, id pgtype.UUID) error
+	ChatSnapshot(ctx context.Context, arg ChatSnapshotParams) (ChatSnapshotRow, error)
+	ChatUserConnections(ctx context.Context, userID pgtype.UUID) (int32, error)
 	ClaimFlowAsset(ctx context.Context, leaseID pgtype.UUID) (MediaFlowAsset, error)
 	CleanupExperienceAudit(ctx context.Context) error
 	CleanupExperienceRates(ctx context.Context) error

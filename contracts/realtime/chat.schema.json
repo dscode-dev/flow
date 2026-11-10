@@ -1,0 +1,333 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:flow:realtime:chat:v1",
+  "title": "Event Space Chat protocol v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "message_id",
+    "type",
+    "version",
+    "sent_at",
+    "payload"
+  ],
+  "properties": {
+    "message_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string",
+      "maxLength": 150,
+      "enum": [
+        "chat.join",
+        "chat.joined",
+        "chat.leave",
+        "chat.message.send",
+        "chat.message.ack",
+        "chat.message.created",
+        "chat.message.removed",
+        "chat.sync",
+        "chat.reset",
+        "chat.access.revoked",
+        "chat.error",
+        "chat.ping",
+        "chat.pong"
+      ]
+    },
+    "version": {
+      "const": 1
+    },
+    "sent_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlation_id": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "type": {
+          "const": "chat.join"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cursor": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          "required": [
+            "cursor"
+          ]
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "chat.message.send"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "client_message_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "body": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 3000
+            }
+          },
+          "required": [
+            "client_message_id",
+            "body"
+          ]
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "chat.sync"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cursor": {
+              "type": "string"
+            },
+            "capabilities": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "cursor",
+            "capabilities"
+          ]
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "enum": [
+            "chat.message.ack",
+            "chat.message.created",
+            "chat.message.removed"
+          ]
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "experience_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "client_message_id": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            },
+            "sequence": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "removed": {
+              "type": "boolean"
+            },
+            "body": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 3000
+            },
+            "author": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "user_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "display_name": {
+                  "type": "string",
+                  "maxLength": 80
+                },
+                "handle": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 30
+                }
+              },
+              "required": [
+                "user_id",
+                "display_name",
+                "handle"
+              ]
+            },
+            "can_delete": {
+              "type": "boolean"
+            },
+            "can_moderate": {
+              "type": "boolean"
+            },
+            "change_sequence": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          },
+          "required": [
+            "id",
+            "experience_id",
+            "client_message_id",
+            "sequence",
+            "created_at",
+            "removed",
+            "body",
+            "author",
+            "can_delete",
+            "can_moderate"
+          ]
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "enum": [
+            "chat.joined"
+          ]
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "experience_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "experience_id"
+          ]
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "enum": [
+            "chat.leave",
+            "chat.ping",
+            "chat.pong"
+          ]
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {},
+          "required": []
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "enum": [
+            "chat.error"
+          ]
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "client_message_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "code"
+          ]
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "enum": [
+            "chat.access.revoked"
+          ]
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          "required": [
+            "code"
+          ]
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "enum": [
+            "chat.reset"
+          ]
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "reason": {
+              "const": "policy_changed"
+            }
+          },
+          "required": [
+            "reason"
+          ]
+        }
+      }
+    }
+  ]
+}

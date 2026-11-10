@@ -96,6 +96,10 @@ WITH a AS (DELETE FROM social.receipts WHERE (actor_user_id,key) IN (SELECT acto
 b AS (DELETE FROM social.rate_limits WHERE (user_id,window_start) IN (SELECT user_id,window_start FROM social.rate_limits WHERE window_start<now()-interval '2 days' LIMIT 500)),
 c AS (DELETE FROM social.audit WHERE id IN (SELECT id FROM social.audit WHERE created_at<now()-interval '180 days' LIMIT 500)),
 d AS (DELETE FROM social.reports WHERE id IN (SELECT id FROM social.reports WHERE created_at<now()-interval '180 days' LIMIT 500)),
+chat_changes AS(DELETE FROM chat.changes WHERE (experience_id,sequence) IN(SELECT experience_id,sequence FROM chat.changes WHERE created_at<now()-interval '180 days' LIMIT 500)),
+chat_records AS(DELETE FROM chat.messages WHERE id IN(SELECT m.id FROM chat.messages m WHERE m.created_at<now()-interval '180 days' AND NOT EXISTS(SELECT FROM chat.changes c WHERE c.message_id=m.id) LIMIT 500)),
+chat_cleanup AS (UPDATE chat.messages SET body=NULL,deleted_at=coalesce(deleted_at,now()) WHERE id IN (SELECT id FROM chat.messages WHERE body IS NOT NULL AND created_at<now()-interval '90 days' LIMIT 500)),
+chat_leases AS(DELETE FROM chat.connections WHERE id IN(SELECT id FROM chat.connections WHERE expires_at<now() LIMIT 500)),
 e AS (DELETE FROM social.comments WHERE id IN (SELECT id FROM social.comments WHERE deleted_at<now()-interval '7 days' LIMIT 500))
 DELETE FROM social.posts WHERE id IN (SELECT p.id FROM social.posts p WHERE p.deleted_at<now()-interval '7 days' AND NOT EXISTS(SELECT FROM social.post_media m JOIN media.flow_assets a ON a.id=m.asset_id WHERE m.post_id=p.id AND a.status<>'DELETED') LIMIT 500);
 -- name: SocialOperationalPosts :many

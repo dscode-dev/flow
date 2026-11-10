@@ -314,3 +314,8 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request, provider string)
 	}
 	respond(w, 200, out)
 }
+
+// AuthenticateAccess revalidates credentials held by a native realtime transport.
+func (h *Handler) AuthenticateAccess(ctx context.Context, access string) (*identity.Session, error) {
+	return h.service.Authenticate(ctx, access)
+}

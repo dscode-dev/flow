@@ -44,11 +44,11 @@ AND p.created_at<=sqlc.arg(snapshot)::timestamptz AND (p.created_at,p.user_id)<(
 ORDER BY p.created_at DESC,p.user_id DESC LIMIT sqlc.arg(page_limit);
 -- name: SpaceReports :many
 SELECT r.id,r.created_at,jsonb_build_object('id',r.id,'target_type',r.target_type,'target_id',r.target_id,'reason',r.reason,'created_at',r.created_at,'reviewed',v.report_id IS NOT NULL)::jsonb AS document
-FROM social.reports r
-LEFT JOIN social.comments c ON r.target_type='COMMENT' AND c.id=r.target_id
-JOIN social.posts p ON p.id=CASE WHEN r.target_type='POST' THEN r.target_id ELSE c.post_id END
+FROM social.reports r LEFT JOIN social.comments c ON r.target_type='COMMENT' AND c.id=r.target_id
+LEFT JOIN social.posts p ON p.id=CASE WHEN r.target_type='POST' THEN r.target_id WHEN r.target_type='COMMENT' THEN c.post_id ELSE NULL END
+LEFT JOIN chat.messages m ON r.target_type='CHAT_MESSAGE' AND m.id=r.target_id
 LEFT JOIN event_space.report_reviews v ON v.report_id=r.id
-WHERE p.experience_id=sqlc.arg(experience_id) AND p.context='EVENT_SPACE' AND event_space.can_moderate(p.experience_id,sqlc.arg(viewer)::uuid)
+WHERE (CASE WHEN r.target_type='CHAT_MESSAGE' THEN m.experience_id ELSE p.experience_id END)=sqlc.arg(experience_id)::uuid AND (p.context='EVENT_SPACE' OR m.id IS NOT NULL) AND event_space.can_moderate(sqlc.arg(experience_id),sqlc.arg(viewer)::uuid)
 AND r.created_at<=sqlc.arg(snapshot)::timestamptz AND (r.created_at,r.id)<(sqlc.arg(after_time)::timestamptz,sqlc.arg(after_id)::uuid)
 ORDER BY r.created_at DESC,r.id DESC LIMIT sqlc.arg(page_limit);
 -- name: SpaceHidden :many
@@ -73,7 +73,11 @@ INSERT INTO event_space.settings(experience_id,paused) VALUES($1,$2) ON CONFLICT
 -- name: SpaceSetPlatformSuspended :exec
 INSERT INTO event_space.settings(experience_id,platform_suspended) VALUES($1,$2) ON CONFLICT(experience_id) DO UPDATE SET platform_suspended=excluded.platform_suspended,version=event_space.settings.version+1,updated_at=now();
 -- name: SpaceReportTarget :one
-SELECT r.id,p.experience_id FROM social.reports r LEFT JOIN social.comments c ON r.target_type='COMMENT' AND c.id=r.target_id JOIN social.posts p ON p.id=CASE WHEN r.target_type='POST' THEN r.target_id ELSE c.post_id END WHERE r.id=$1 AND p.context='EVENT_SPACE';
+SELECT r.id,coalesce(m.experience_id,p.experience_id)::uuid AS experience_id FROM social.reports r
+LEFT JOIN social.comments c ON r.target_type='COMMENT' AND c.id=r.target_id
+LEFT JOIN social.posts p ON p.id=CASE WHEN r.target_type='POST' THEN r.target_id WHEN r.target_type='COMMENT' THEN c.post_id ELSE NULL END
+LEFT JOIN chat.messages m ON r.target_type='CHAT_MESSAGE' AND m.id=r.target_id
+WHERE r.id=$1 AND (p.context='EVENT_SPACE' OR m.id IS NOT NULL);
 -- name: SpaceReviewReport :exec
 INSERT INTO event_space.report_reviews(report_id,experience_id,reviewed_by) VALUES($1,$2,$3) ON CONFLICT(report_id) DO UPDATE SET reviewed_by=excluded.reviewed_by,reviewed_at=now();
 -- name: SocialPostScope :one

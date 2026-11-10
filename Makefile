@@ -73,3 +73,9 @@ event-space-test:
 	FLOW_EXPERIENCES_TEST_FILTER=TestEventSpace sh scripts/experiences-test.sh
 event-space-mobile-contract:
 	FLOW_FLUTTER_CONTRACT_BIN="$(FLUTTER)" FLOW_EXPERIENCES_TEST_FILTER=TestFlutterEventSpaceContract sh scripts/experiences-test.sh
+
+.PHONY: chat-test chat-mobile-contract
+chat-test:
+	FLOW_EXPERIENCES_TEST_FILTER=TestChat sh scripts/experiences-test.sh
+chat-mobile-contract:
+	FLOW_FLUTTER_CONTRACT_BIN="$(FLUTTER)" FLOW_EXPERIENCES_TEST_FILTER=TestFlutterChatContract sh scripts/experiences-test.sh

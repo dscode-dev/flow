@@ -117,6 +117,19 @@ func (s *Service) Report(ctx context.Context, a *identity.Session, key string, i
 			if _, e := loadPost(ctx, q, in.TargetID, a.UserID); e != nil {
 				return "", e
 			}
+		case "CHAT_MESSAGE":
+			m, e := q.ChatLockMessage(ctx, id(in.TargetID))
+			if e != nil || m.DeletedAt.Valid || m.ModerationStatus != "VISIBLE" {
+				return "", identity.ErrNotFound
+			}
+			raw, e := q.ChatDocument(ctx, dbgen.ChatDocumentParams{Column1: m.ID, Column2: id(a.UserID)})
+			if e != nil {
+				return "", e
+			}
+			d, e := document(raw, nil)
+			if e != nil || d["removed"] == true {
+				return "", identity.ErrNotFound
+			}
 		case "COMMENT":
 			c, e := q.SocialLockComment(ctx, id(in.TargetID))
 			if e != nil || c.DeletedAt.Valid || c.LocalHidden || c.ModerationStatus != "VISIBLE" {

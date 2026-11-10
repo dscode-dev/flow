@@ -8,6 +8,44 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ChatChange struct {
+	ExperienceID pgtype.UUID
+	Sequence     int64
+	MessageID    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+}
+
+type ChatConnection struct {
+	ID           pgtype.UUID
+	UserID       pgtype.UUID
+	SessionID    pgtype.UUID
+	ExperienceID pgtype.UUID
+	ExpiresAt    pgtype.Timestamptz
+}
+
+type ChatMessage struct {
+	ID               pgtype.UUID
+	ExperienceID     pgtype.UUID
+	AuthorUserID     pgtype.UUID
+	ClientMessageID  pgtype.UUID
+	RequestHash      []byte
+	Body             pgtype.Text
+	Sequence         int64
+	CreatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	ModerationStatus string
+}
+
+type ChatPolicyClock struct {
+	ID      bool
+	Version int64
+}
+
+type ChatRoom struct {
+	ExperienceID pgtype.UUID
+	Sequence     int64
+}
+
 type EventSpaceModerator struct {
 	ExperienceID pgtype.UUID
 	UserID       pgtype.UUID

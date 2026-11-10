@@ -324,7 +324,11 @@ func (q *Queries) SpaceRead(ctx context.Context, arg SpaceReadParams) (bool, err
 }
 
 const spaceReportTarget = `-- name: SpaceReportTarget :one
-SELECT r.id,p.experience_id FROM social.reports r LEFT JOIN social.comments c ON r.target_type='COMMENT' AND c.id=r.target_id JOIN social.posts p ON p.id=CASE WHEN r.target_type='POST' THEN r.target_id ELSE c.post_id END WHERE r.id=$1 AND p.context='EVENT_SPACE'
+SELECT r.id,coalesce(m.experience_id,p.experience_id)::uuid AS experience_id FROM social.reports r
+LEFT JOIN social.comments c ON r.target_type='COMMENT' AND c.id=r.target_id
+LEFT JOIN social.posts p ON p.id=CASE WHEN r.target_type='POST' THEN r.target_id WHEN r.target_type='COMMENT' THEN c.post_id ELSE NULL END
+LEFT JOIN chat.messages m ON r.target_type='CHAT_MESSAGE' AND m.id=r.target_id
+WHERE r.id=$1 AND (p.context='EVENT_SPACE' OR m.id IS NOT NULL)
 `
 
 type SpaceReportTargetRow struct {
@@ -341,11 +345,11 @@ func (q *Queries) SpaceReportTarget(ctx context.Context, id pgtype.UUID) (SpaceR
 
 const spaceReports = `-- name: SpaceReports :many
 SELECT r.id,r.created_at,jsonb_build_object('id',r.id,'target_type',r.target_type,'target_id',r.target_id,'reason',r.reason,'created_at',r.created_at,'reviewed',v.report_id IS NOT NULL)::jsonb AS document
-FROM social.reports r
-LEFT JOIN social.comments c ON r.target_type='COMMENT' AND c.id=r.target_id
-JOIN social.posts p ON p.id=CASE WHEN r.target_type='POST' THEN r.target_id ELSE c.post_id END
+FROM social.reports r LEFT JOIN social.comments c ON r.target_type='COMMENT' AND c.id=r.target_id
+LEFT JOIN social.posts p ON p.id=CASE WHEN r.target_type='POST' THEN r.target_id WHEN r.target_type='COMMENT' THEN c.post_id ELSE NULL END
+LEFT JOIN chat.messages m ON r.target_type='CHAT_MESSAGE' AND m.id=r.target_id
 LEFT JOIN event_space.report_reviews v ON v.report_id=r.id
-WHERE p.experience_id=$1 AND p.context='EVENT_SPACE' AND event_space.can_moderate(p.experience_id,$2::uuid)
+WHERE (CASE WHEN r.target_type='CHAT_MESSAGE' THEN m.experience_id ELSE p.experience_id END)=$1::uuid AND (p.context='EVENT_SPACE' OR m.id IS NOT NULL) AND event_space.can_moderate($1,$2::uuid)
 AND r.created_at<=$3::timestamptz AND (r.created_at,r.id)<($4::timestamptz,$5::uuid)
 ORDER BY r.created_at DESC,r.id DESC LIMIT $6
 `

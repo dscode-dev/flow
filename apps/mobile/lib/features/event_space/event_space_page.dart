@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'chat_controller.dart';
+import 'chat_panel.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,6 +26,10 @@ class EventSpacePage extends ConsumerStatefulWidget {
 class _EventSpacePageState extends ConsumerState<EventSpacePage>
     with WidgetsBindingObserver {
   late ParticipationStore _summary, _rows;
+  late ChatController _chat;
+  bool _chatActivated = false;
+  bool _chatRevocationHandled = false;
+  ProviderSubscription<ChatController>? _chatSubscription;
   ProviderSubscription<ParticipationStore>? _rowSubscription;
   late FlowPlayback _playback;
   late ExperienceAccess _access;
@@ -31,10 +38,17 @@ class _EventSpacePageState extends ConsumerState<EventSpacePage>
   String get _base => 'v1/experiences/${widget.id}/space';
   String get _path => '$_base/$_section';
   Map<String, dynamic> get _caps =>
-      (_summary.document?['capabilities'] as Map<String, dynamic>?) ?? {};
+      (_summary.document?['capabilities'] as Map<String, dynamic>?) ??
+      (_chat.connected ? _chat.capabilities : {});
   @override
   void initState() {
     super.initState();
+    _chatSubscription = ref.listenManual(
+      chatControllerProvider(widget.id),
+      (_, _) {},
+    );
+    _chat = _chatSubscription!.read();
+    _chat.addListener(_chatChanged);
     _summary = ref.read(socialStoreProvider(_base));
     _rowSubscription?.close();
     _rowSubscription = ref.listenManual(socialStoreProvider(_path), (_, _) {});
@@ -48,11 +62,22 @@ class _EventSpacePageState extends ConsumerState<EventSpacePage>
     });
   }
 
+  void _chatChanged() {
+    if (_chat.connected) _chatRevocationHandled = false;
+    if (_chat.issue == 'access_revoked' && !_chatRevocationHandled) {
+      _chatRevocationHandled = true;
+      _rows.pause();
+      _summary.pause();
+      unawaited(_playback.close());
+    }
+  }
+
   void _account() {
     _pause();
   }
 
   void _pause() {
+    _chat.pause();
     _rows.pause();
     _summary.pause();
     unawaited(_playback.close());
@@ -76,7 +101,8 @@ class _EventSpacePageState extends ConsumerState<EventSpacePage>
         );
         _rows = _rowSubscription!.read();
       }
-      await _rows.resume();
+      if (_chatActivated) await _chat.start();
+      if (_section != 'chat') await _rows.resume();
     }
   }
 
@@ -84,6 +110,8 @@ class _EventSpacePageState extends ConsumerState<EventSpacePage>
     _rows.pause();
     await _playback.close();
     if (!mounted) return;
+    if (section == 'chat') _chatActivated = true;
+    _chat.show(section == 'chat');
     setState(() => _section = section);
     _rowSubscription?.close();
     _rowSubscription = ref.listenManual(socialStoreProvider(_path), (_, _) {});
@@ -168,7 +196,11 @@ class _EventSpacePageState extends ConsumerState<EventSpacePage>
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, set) => AlertDialog(
-          title: const Text('Confirmar ação no espaço?'),
+          title: Text(
+            type == 'CHAT_MESSAGE'
+                ? 'Remover mensagem do chat?'
+                : 'Confirmar ação no espaço?',
+          ),
           content: DropdownButtonFormField<String>(
             initialValue: selected,
             decoration: const InputDecoration(labelText: 'Motivo'),
@@ -198,6 +230,12 @@ class _EventSpacePageState extends ConsumerState<EventSpacePage>
       ),
     );
     if (reason == null || !mounted || !_foreground) return;
+    if (type == 'CHAT_MESSAGE') {
+      await _chat.remove(target, reason);
+      await _load();
+      return;
+    }
+
     if (action == 'REMOVE') {
       await _command(
         'POST',
@@ -298,17 +336,43 @@ class _EventSpacePageState extends ConsumerState<EventSpacePage>
     _pause();
     _playback.dispose();
     _rowSubscription?.close();
+    _chat.removeListener(_chatChanged);
+    _chatSubscription?.close();
     super.dispose();
   }
 
+  Widget _tabs() => SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      children: [
+        for (final tab in {
+          'feed': 'Mural',
+          'chat': _chat.newMessages ? 'Chat •' : 'Chat',
+          'gallery': 'Mídia',
+          'participants': 'Participantes',
+          if (_caps['can_moderate'] == true) 'reports': 'Denúncias',
+          if (_caps['can_moderate'] == true) 'hidden': 'Conteúdo oculto',
+        }.entries)
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(tab.value),
+              selected: _section == tab.key,
+              onSelected: (_) => _select(tab.key),
+            ),
+          ),
+      ],
+    ),
+  );
   @override
   Widget build(BuildContext context) {
     ref.watch(socialStoreProvider(_base));
     ref.watch(socialStoreProvider(_path));
     return ListenableBuilder(
-      listenable: Listenable.merge([_summary, _rows]),
+      listenable: Listenable.merge([_summary, _rows, _chat]),
       builder: (context, _) {
-        final space = _summary.document;
+        final space =
+            _summary.document ?? (_chat.connected ? _chat.header : null);
         final allowed = _caps['can_read'] == true;
         return PopScope(
           onPopInvokedWithResult: (p, r) {
@@ -350,7 +414,8 @@ class _EventSpacePageState extends ConsumerState<EventSpacePage>
                   ),
               ],
             ),
-            floatingActionButton: allowed && _caps['can_write'] == true
+            floatingActionButton:
+                allowed && _caps['can_write'] == true && _section != 'chat'
                 ? FloatingActionButton.extended(
                     heroTag: null,
                     onPressed: () =>
@@ -363,244 +428,275 @@ class _EventSpacePageState extends ConsumerState<EventSpacePage>
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 760),
-                  child: RefreshIndicator(
-                    onRefresh: _load,
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 100),
-                      children: [
-                        _status(_summary),
-                        if (space != null) ...[
-                          Text(
-                            space['title'] as String,
-                            style: Theme.of(context).textTheme.headlineSmall,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(switch (space['phase']) {
-                            'ENDED' => 'Memórias · experiência encerrada',
-                            'CANCELLED' =>
-                              'Experiência cancelada · somente leitura',
-                            'ARCHIVED' => 'Memórias arquivadas',
-                            'LIVE' => 'Acontecendo agora',
-                            'DRAFT' => 'Rascunho · espaço ainda indisponível',
-                            _ => 'O encontro começa em breve',
-                          }, style: Theme.of(context).textTheme.labelLarge),
-                          if (space['starts_at'] != null)
-                            Text(
-                              DateTime.parse(space['starts_at'] as String)
-                                  .toLocal()
-                                  .toString()
-                                  .substring(0, 16),
-                            ),
-                          if ((space['description'] as String).isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: Text(space['description'] as String),
-                            ),
-                          Wrap(
-                            spacing: 8,
+                  child: _section == 'chat' && allowed && space != null
+                      ? Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              TextButton.icon(
-                                onPressed: () =>
-                                    _open('/experiences/${widget.id}'),
-                                icon: const Icon(Icons.event_outlined),
-                                label: const Text('Detalhes da experiência'),
-                              ),
-                              if (allowed)
+                              if (MediaQuery.viewInsetsOf(context).bottom == 0)
                                 Text(
-                                  '${space['participant_count']} participantes confirmados',
+                                  space['title'] as String,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleLarge,
+                                ),
+                              _tabs(),
+                              const SizedBox(height: 8),
+                              Expanded(child: ChatPanel(_chat)),
+                            ],
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _load,
+                          child: ListView(
+                            padding: const EdgeInsets.fromLTRB(24, 8, 24, 100),
+                            children: [
+                              _status(_summary),
+                              if (_chat.issue == 'access_revoked' &&
+                                  space == null)
+                                const Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: Text(
+                                    'Seu acesso ao espaço foi encerrado. Atualize a experiência.',
+                                  ),
+                                ),
+                              if (space != null) ...[
+                                Text(
+                                  space['title'] as String,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  switch (space['phase']) {
+                                    'ENDED' =>
+                                      'Memórias · experiência encerrada',
+                                    'CANCELLED' =>
+                                      'Experiência cancelada · somente leitura',
+                                    'ARCHIVED' => 'Memórias arquivadas',
+                                    'LIVE' => 'Acontecendo agora',
+                                    'DRAFT' =>
+                                      'Rascunho · espaço ainda indisponível',
+                                    _ => 'O encontro começa em breve',
+                                  },
+                                  style: Theme.of(context).textTheme.labelLarge,
+                                ),
+                                if (space['starts_at'] != null)
+                                  Text(
+                                    DateTime.parse(space['starts_at'] as String)
+                                        .toLocal()
+                                        .toString()
+                                        .substring(0, 16),
+                                  ),
+                                if ((space['description'] as String).isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 12),
+                                    child: Text(space['description'] as String),
+                                  ),
+                                Wrap(
+                                  spacing: 8,
+                                  children: [
+                                    TextButton.icon(
+                                      onPressed: () =>
+                                          _open('/experiences/${widget.id}'),
+                                      icon: const Icon(Icons.event_outlined),
+                                      label: const Text(
+                                        'Detalhes da experiência',
+                                      ),
+                                    ),
+                                    if (allowed)
+                                      Text(
+                                        '${space['participant_count']} participantes confirmados',
+                                      ),
+                                  ],
+                                ),
+                                if (!allowed) ...[
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 24),
+                                    child: FlowStateView(
+                                      kind: FlowViewState.empty,
+                                      message: 'O mural, a mídia e a lista de participantes são exclusivos das pessoas autorizadas.',
+                                    ),
+                                  ),
+                                  ParticipationPanel(
+                                    widget.id,
+                                    onChanged: _load,
+                                  ),
+                                ] else ...[
+                                  Text(
+                                    'Sua participação: ${space['my_state'] == 'CONFIRMED'
+                                        ? 'confirmada'
+                                        : space['role'] == 'CREATOR'
+                                        ? 'organizador'
+                                        : space['my_state']}',
+                                  ),
+                                  if (_caps['can_write'] != true)
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                      child: Text(
+                                        'Espaço em modo de leitura. Você pode consultar as memórias e denunciar conteúdo.',
+                                      ),
+                                    ),
+                                  _tabs(),
+                                  if (_section != 'chat') _status(_rows),
+                                  if (_section != 'chat' &&
+                                      _rows.document != null &&
+                                      _rows.rows.isEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 32,
+                                      ),
+                                      child: FlowStateView(
+                                        kind: FlowViewState.empty,
+                                        message: switch (_section) {
+                                          'feed' => 'Este espaço ainda não tem publicações.',
+                                          'gallery' =>
+                                            'Ainda não há mídias publicadas.',
+                                          'participants' => 'Não há participantes disponíveis para exibir.',
+                                          'reports' =>
+                                            'Nenhuma denúncia neste espaço.',
+                                          _ => 'Nenhum conteúdo ocultado localmente.',
+                                        },
+                                      ),
+                                    ),
+                                  if (_section == 'gallery')
+                                    GridView.builder(
+                                      shrinkWrap: true,
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      itemCount: _rows.rows.length,
+                                      gridDelegate:
+                                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                                            maxCrossAxisExtent: 330,
+                                            childAspectRatio: .85,
+                                            crossAxisSpacing: 12,
+                                            mainAxisSpacing: 12,
+                                          ),
+                                      itemBuilder: (context, i) {
+                                        final item = _rows.rows[i];
+                                        final p =
+                                            item['post']
+                                                as Map<String, dynamic>;
+                                        final m =
+                                            (p['media'] as List).single
+                                                as Map<String, dynamic>;
+                                        return Column(
+                                          children: [
+                                            Expanded(
+                                              child: SocialMedia(
+                                                p['id'] as String,
+                                                m,
+                                                playback: _playback,
+                                                key: ValueKey(item['id']),
+                                              ),
+                                            ),
+                                            TextButton(
+                                              onPressed: () => _open(
+                                                '/social/posts/${p['id']}',
+                                              ),
+                                              child: const Text(
+                                                'Ver publicação original',
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    )
+                                  else
+                                    for (final p in _rows.rows)
+                                      if (_section == 'feed')
+                                        _post(p)
+                                      else if (_section == 'participants')
+                                        _person(p)
+                                      else if (_section == 'reports')
+                                        ListTile(
+                                          title: Text(
+                                            switch (p['target_type']) {
+                                              'COMMENT' =>
+                                                'Comentário denunciado',
+                                              'CHAT_MESSAGE' =>
+                                                'Mensagem denunciada',
+                                              _ => 'Publicação denunciada',
+                                            },
+                                          ),
+                                          subtitle: Text(
+                                            '${p['reason']} · ${p['reviewed'] == true ? 'Revisada localmente' : 'Aguardando revisão'}',
+                                          ),
+                                          trailing: PopupMenuButton<String>(
+                                            tooltip: 'Revisar denúncia',
+                                            onSelected: (v) {
+                                              if (v == 'REVIEW') {
+                                                _moderate(
+                                                  'REPORT',
+                                                  p['id'] as String,
+                                                  v,
+                                                );
+                                              } else {
+                                                _moderate(
+                                                  p['target_type'] as String,
+                                                  p['target_id'] as String,
+                                                  v,
+                                                );
+                                              }
+                                            },
+                                            itemBuilder: (_) => [
+                                              const PopupMenuItem(
+                                                value: 'REVIEW',
+                                                child: Text(
+                                                  'Marcar revisão local',
+                                                ),
+                                              ),
+                                              PopupMenuItem(
+                                                value: 'HIDE',
+                                                child: Text(
+                                                  p['target_type'] ==
+                                                          'CHAT_MESSAGE'
+                                                      ? 'Remover mensagem do chat'
+                                                      : 'Ocultar conteúdo no espaço',
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      else
+                                        ListTile(
+                                          title: Text(
+                                            p['target_type'] == 'COMMENT'
+                                                ? 'Comentário ocultado'
+                                                : 'Publicação ocultada',
+                                          ),
+                                          trailing: TextButton(
+                                            onPressed: () => _moderate(
+                                              p['target_type'] as String,
+                                              p['target_id'] as String,
+                                              'RESTORE',
+                                            ),
+                                            child: const Text('Restaurar'),
+                                          ),
+                                        ),
+                                  if (_rows.cursor != null)
+                                    TextButton(
+                                      onPressed: _rows.moreLoading
+                                          ? null
+                                          : () => _rows.load(more: true),
+                                      child: const Text('Carregar mais'),
+                                    ),
+                                ],
+                              ] else if (!_summary.loading)
+                                const Padding(
+                                  padding: EdgeInsets.all(32),
+                                  child: FlowStateView(
+                                    kind: FlowViewState.error,
+                                    message: 'Espaço indisponível ou sem acesso. Confirme sua participação nos detalhes.',
+                                  ),
                                 ),
                             ],
                           ),
-                          if (!allowed) ...[
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 24),
-                              child: FlowStateView(
-                                kind: FlowViewState.empty,
-                                message: 'O mural, a mídia e a lista de participantes são exclusivos das pessoas autorizadas.',
-                              ),
-                            ),
-                            ParticipationPanel(widget.id, onChanged: _load),
-                          ] else ...[
-                            Text(
-                              'Sua participação: ${space['my_state'] == 'CONFIRMED'
-                                  ? 'confirmada'
-                                  : space['role'] == 'CREATOR'
-                                  ? 'organizador'
-                                  : space['my_state']}',
-                            ),
-                            if (_caps['can_write'] != true)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 12),
-                                child: Text(
-                                  'Espaço em modo de leitura. Você pode consultar as memórias e denunciar conteúdo.',
-                                ),
-                              ),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  for (final tab in {
-                                    'feed': 'Mural',
-                                    'gallery': 'Mídia',
-                                    'participants': 'Participantes',
-                                    if (_caps['can_moderate'] == true)
-                                      'reports': 'Denúncias',
-                                    if (_caps['can_moderate'] == true)
-                                      'hidden': 'Conteúdo oculto',
-                                  }.entries)
-                                    Padding(
-                                      padding: const EdgeInsets.only(right: 8),
-                                      child: ChoiceChip(
-                                        label: Text(tab.value),
-                                        selected: _section == tab.key,
-                                        onSelected: (_) => _select(tab.key),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            _status(_rows),
-                            if (_rows.document != null && _rows.rows.isEmpty)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 32,
-                                ),
-                                child: FlowStateView(
-                                  kind: FlowViewState.empty,
-                                  message: switch (_section) {
-                                    'feed' =>
-                                      'Este espaço ainda não tem publicações.',
-                                    'gallery' =>
-                                      'Ainda não há mídias publicadas.',
-                                    'participants' => 'Não há participantes disponíveis para exibir.',
-                                    'reports' =>
-                                      'Nenhuma denúncia neste espaço.',
-                                    _ => 'Nenhum conteúdo ocultado localmente.',
-                                  },
-                                ),
-                              ),
-                            if (_section == 'gallery')
-                              GridView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: _rows.rows.length,
-                                gridDelegate:
-                                    const SliverGridDelegateWithMaxCrossAxisExtent(
-                                      maxCrossAxisExtent: 330,
-                                      childAspectRatio: .85,
-                                      crossAxisSpacing: 12,
-                                      mainAxisSpacing: 12,
-                                    ),
-                                itemBuilder: (context, i) {
-                                  final item = _rows.rows[i];
-                                  final p =
-                                      item['post'] as Map<String, dynamic>;
-                                  final m =
-                                      (p['media'] as List).single
-                                          as Map<String, dynamic>;
-                                  return Column(
-                                    children: [
-                                      Expanded(
-                                        child: SocialMedia(
-                                          p['id'] as String,
-                                          m,
-                                          playback: _playback,
-                                          key: ValueKey(item['id']),
-                                        ),
-                                      ),
-                                      TextButton(
-                                        onPressed: () =>
-                                            _open('/social/posts/${p['id']}'),
-                                        child: const Text(
-                                          'Ver publicação original',
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              )
-                            else
-                              for (final p in _rows.rows)
-                                if (_section == 'feed')
-                                  _post(p)
-                                else if (_section == 'participants')
-                                  _person(p)
-                                else if (_section == 'reports')
-                                  ListTile(
-                                    title: Text(
-                                      p['target_type'] == 'COMMENT'
-                                          ? 'Comentário denunciado'
-                                          : 'Publicação denunciada',
-                                    ),
-                                    subtitle: Text(
-                                      '${p['reason']} · ${p['reviewed'] == true ? 'Revisada localmente' : 'Aguardando revisão'}',
-                                    ),
-                                    trailing: PopupMenuButton<String>(
-                                      tooltip: 'Revisar denúncia',
-                                      onSelected: (v) {
-                                        if (v == 'REVIEW') {
-                                          _moderate(
-                                            'REPORT',
-                                            p['id'] as String,
-                                            v,
-                                          );
-                                        } else {
-                                          _moderate(
-                                            p['target_type'] as String,
-                                            p['target_id'] as String,
-                                            v,
-                                          );
-                                        }
-                                      },
-                                      itemBuilder: (_) => [
-                                        const PopupMenuItem(
-                                          value: 'REVIEW',
-                                          child: Text('Marcar revisão local'),
-                                        ),
-                                        const PopupMenuItem(
-                                          value: 'HIDE',
-                                          child: Text(
-                                            'Ocultar conteúdo no espaço',
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  )
-                                else
-                                  ListTile(
-                                    title: Text(
-                                      p['target_type'] == 'COMMENT'
-                                          ? 'Comentário ocultado'
-                                          : 'Publicação ocultada',
-                                    ),
-                                    trailing: TextButton(
-                                      onPressed: () => _moderate(
-                                        p['target_type'] as String,
-                                        p['target_id'] as String,
-                                        'RESTORE',
-                                      ),
-                                      child: const Text('Restaurar'),
-                                    ),
-                                  ),
-                            if (_rows.cursor != null)
-                              TextButton(
-                                onPressed: _rows.moreLoading
-                                    ? null
-                                    : () => _rows.load(more: true),
-                                child: const Text('Carregar mais'),
-                              ),
-                          ],
-                        ] else if (!_summary.loading)
-                          const Padding(
-                            padding: EdgeInsets.all(32),
-                            child: FlowStateView(
-                              kind: FlowViewState.error,
-                              message: 'Espaço indisponível ou sem acesso. Confirme sua participação nos detalhes.',
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
+                        ),
                 ),
               ),
             ),

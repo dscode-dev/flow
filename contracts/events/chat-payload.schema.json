@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:flow:events:chat-payload:v1",
+  "title": "Chat durable event payload v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "resource_id",
+    "message_id",
+    "sequence"
+  ],
+  "properties": {
+    "resource_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "message_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "sequence": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    }
+  }
+}

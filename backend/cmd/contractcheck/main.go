@@ -54,6 +54,13 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Println("JSON Schema válido: Event Space payload v1")
+	for _, path := range []string{filepath.Join(base, "realtime", "chat.schema.json"), filepath.Join(base, "events", "chat-payload.schema.json")} {
+		if err := validateSchema(path); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}
+	fmt.Println("Chat protocol/event schemas válidos")
 }
 
 func validateSchema(path string) error {

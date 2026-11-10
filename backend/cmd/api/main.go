@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flow.local/backend/internal/chat"
 	"flow.local/backend/internal/eventspace"
 	"flow.local/backend/internal/experiences"
 	"flow.local/backend/internal/identity"
@@ -81,7 +82,13 @@ func run(log *slog.Logger) error {
 	socialService := social.New(deps.Postgres, mediaService, socialConfig)
 	socialHandler := social.NewHandler(socialService, identityHandler)
 	spaceHandler := eventspace.NewHandler(socialService, identityHandler)
-	server := &http.Server{Addr: c.Address, Handler: httpapi.New(log, deps, c.MaxBodyBytes, c.DependencyTimeout, draining.Load, identityHandler.Register, experiencesHandler.Register, participationHandler.Register, socialHandler.Register, spaceHandler.Register), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
+	chatConfig, err := chat.ParseConfig(identityConfig.HMACKey)
+	if err != nil {
+		return err
+	}
+	chatHandler := chat.NewHandler(chat.New(deps.Postgres, chatConfig), identityHandler)
+	defer chatHandler.Shutdown()
+	server := &http.Server{Addr: c.Address, Handler: httpapi.New(log, deps, c.MaxBodyBytes, c.DependencyTimeout, draining.Load, identityHandler.Register, experiencesHandler.Register, participationHandler.Register, socialHandler.Register, spaceHandler.Register, chatHandler.Register), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
 	done := make(chan error, 1)
 	go func() {
 		log.Info("api starting", "address", c.Address, "environment", c.Environment)
@@ -96,6 +103,7 @@ func run(log *slog.Logger) error {
 	case <-ctx.Done():
 	}
 	draining.Store(true)
+	chatHandler.Shutdown()
 	shutdown, cancel := context.WithTimeout(context.Background(), c.ShutdownTimeout)
 	defer cancel()
 	if err := server.Shutdown(shutdown); err != nil {

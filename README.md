@@ -123,3 +123,5 @@ Backend físico com drafts, publicação, edições protegidas/ETag, cancelament
 Social PR-07: [funcionalidade, API e operação](docs/features/social.md), [ADR0012](docs/decisions/0012-social-publication-graph-media.md). Validação isolada: `make social-test` e `make social-mobile-contract`. Acesso pelo botão Social na Home, com autenticação existente. Nenhum deep link externo inventado.
 
 Event Space (PR-08): [matriz, contratos, moderação e operação](docs/features/event-space.md), [ADR0013](docs/decisions/0013-event-space-context-authorization.md). Validação isolada: `make event-space-test` e `make event-space-mobile-contract`.
+
+Chat contextual (PR-09): [contratos, privacidade e operação](docs/features/chat.md), [ADR0014](docs/decisions/0014-chat-persistence-realtime.md). Testes isolados: `make chat-test` e `make chat-mobile-contract`.

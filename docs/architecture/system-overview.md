@@ -59,3 +59,7 @@ Experiences implementa rascunho/publicação/edição limitada/cancelamento/arqu
 ## Contexto Event Space — PR-08
 
 Boundary HTTP fino dentro do monólito, usando o serviço Social, Participation e UUID da Experience. Sem novo serviço/banco/worker. EVENT_SPACE/SPACE tem ACL própria e consulta contextual sem exposição no feed global; lifecycle deriva da Experience. Papéis/configuração/restrições são os únicos dados adicionais. [ADR0013](../decisions/0013-event-space-context-authorization.md) e [operação](../features/event-space.md).
+
+## Chat contextual — PR-09
+
+Transporte WebSocket no mesmo flow-api, mensagens/ordem/recuperação em PostgreSQL e autorização Event Space atual. Leases e clock de política coordenam instâncias sem persistir presença. REST para resumo/histórico/remoção e WebSocket para envio/ACK/entrega. [ADR0014](../decisions/0014-chat-persistence-realtime.md), [contratos/operação](../features/chat.md). Sem serviço dedicado, DM, mídia no chat, E2EE ou P2P.

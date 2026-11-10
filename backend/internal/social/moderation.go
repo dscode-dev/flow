@@ -40,6 +40,44 @@ func Operate(ctx context.Context, p *pgxpool.Pool, operator, caseID, action, tar
 			} else {
 				err = q.SpaceSetPlatformSuspended(ctx, dbgen.SpaceSetPlatformSuspendedParams{ExperienceID: id(target), PlatformSuspended: action == "hide-space"})
 			}
+
+		case "chat-messages":
+			rows, e := q.ChatOperationalMessages(ctx, id(target))
+			if e != nil {
+				return e
+			}
+			for _, b := range rows {
+				out = append(out, json.RawMessage(b))
+			}
+		case "hide-message", "show-message", "delete-message":
+			eid, e := q.ChatMessageSpace(ctx, id(target))
+			if e != nil {
+				return identity.ErrNotFound
+			}
+			if _, e = q.LockExperience(ctx, eid); e != nil {
+				return e
+			}
+			m, e := q.ChatLockMessage(ctx, id(target))
+			if e != nil {
+				return e
+			}
+			if action == "delete-message" {
+				err = q.ChatRemove(ctx, m.ID)
+			} else {
+				state := "WITHHELD"
+				if action == "show-message" {
+					state = "VISIBLE"
+				}
+				err = q.ChatModerate(ctx, dbgen.ChatModerateParams{ID: m.ID, ModerationStatus: state})
+			}
+			if err != nil {
+				return err
+			}
+			seq, e := q.ChatNext(ctx, eid)
+			if e != nil {
+				return e
+			}
+			err = q.ChatChange(ctx, dbgen.ChatChangeParams{ExperienceID: eid, Sequence: seq, MessageID: m.ID})
 		case "posts", "post":
 			pid, author := id(""), id("")
 			if action == "post" {

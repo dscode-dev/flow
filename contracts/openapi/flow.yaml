@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Flow API
-  version: 1.7.0
+  version: 1.8.0
   description: 'Identity por PHONE, GOOGLE e APPLE; Experiences e capas S3 verificadas. Credenciais opacas Flow,
     sem senha. Provedores/storage sem configuração retornam 503; nenhuma homologação externa é presumida.'
 servers:
@@ -4137,6 +4137,156 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/SpaceModerationInput'
+  /v1/experiences/{experienceId}/space/chat:
+    get:
+      operationId: getChatSummary
+      summary: getChatSummary
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Estado contextual atual, no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSummary'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Organizador ou CONFIRMED atual para conteúdo; PUBLIC/UNLISTED não
+        participantes recebem apenas resumo limitado; PRIVATE sem confirmação404, convite
+        pendente não concede conteúdo. DRAFT sem feed, ENDED/CANCELLED/ARCHIVED somente
+        leitura. Moderação local com motivo e escopo, sem privilégios globais. Cursor
+        sessão/recurso/seção/limite15min,20/50. Revalidar em até30s, ao perder participação/conta/background/rota.
+        Criação/interações/mídia continuam pelos contratos Social com contexto EVENT_SPACE
+        e visibility SPACE; conteúdo nunca entra automaticamente no feed/perfil Social.
+  /v1/experiences/{experienceId}/space/chat/messages:
+    get:
+      operationId: getChatHistory
+      summary: getChatHistory
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 2048
+      - name: after
+        in: query
+        schema:
+          type: string
+          maxLength: 2048
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      responses:
+        '200':
+          description: Estado contextual atual, no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatPage'
+        default:
+          $ref: '#/components/responses/Error'
+      description: Organizador ou CONFIRMED atual para conteúdo; PUBLIC/UNLISTED não
+        participantes recebem apenas resumo limitado; PRIVATE sem confirmação404, convite
+        pendente não concede conteúdo. DRAFT sem feed, ENDED/CANCELLED/ARCHIVED somente
+        leitura. Moderação local com motivo e escopo, sem privilégios globais. Cursor
+        sessão/recurso/seção/limite15min,20/50. Revalidar em até30s, ao perder participação/conta/background/rota.
+        Criação/interações/mídia continuam pelos contratos Social com contexto EVENT_SPACE
+        e visibility SPACE; conteúdo nunca entra automaticamente no feed/perfil Social.
+  /v1/experiences/{experienceId}/space/chat/socket:
+    get:
+      operationId: connectChat
+      summary: connectChat
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        default:
+          $ref: '#/components/responses/Error'
+        '101':
+          description: Upgrade WebSocket flow.chat.v1. Bearer apenas em cabeçalho; nenhuma
+            query aceita. Origin nativo ausente ou allowlist explícita. Protocolo em
+            contracts/realtime/chat.schema.json.
+      description: Organizador ou CONFIRMED atual para conteúdo; PUBLIC/UNLISTED não
+        participantes recebem apenas resumo limitado; PRIVATE sem confirmação404, convite
+        pendente não concede conteúdo. DRAFT sem feed, ENDED/CANCELLED/ARCHIVED somente
+        leitura. Moderação local com motivo e escopo, sem privilégios globais. Cursor
+        sessão/recurso/seção/limite15min,20/50. Revalidar em até30s, ao perder participação/conta/background/rota.
+        Criação/interações/mídia continuam pelos contratos Social com contexto EVENT_SPACE
+        e visibility SPACE; conteúdo nunca entra automaticamente no feed/perfil Social.
+  /v1/experiences/{experienceId}/space/chat/messages/{messageId}:
+    delete:
+      operationId: deleteChatMessage
+      summary: Remover mensagem própria ou moderar no próprio espaço
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: experienceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: messageId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Estado contextual atual, no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                required:
+                - id
+        default:
+          $ref: '#/components/responses/Error'
+      description: Organizador ou CONFIRMED atual para conteúdo; PUBLIC/UNLISTED não
+        participantes recebem apenas resumo limitado; PRIVATE sem confirmação404, convite
+        pendente não concede conteúdo. DRAFT sem feed, ENDED/CANCELLED/ARCHIVED somente
+        leitura. Moderação local com motivo e escopo, sem privilégios globais. Cursor
+        sessão/recurso/seção/limite15min,20/50. Revalidar em até30s, ao perder participação/conta/background/rota.
+        Criação/interações/mídia continuam pelos contratos Social com contexto EVENT_SPACE
+        e visibility SPACE; conteúdo nunca entra automaticamente no feed/perfil Social.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRemoveInput'
 components:
   responses:
     Error:
@@ -6164,6 +6314,7 @@ components:
           - USER
           - POST
           - COMMENT
+          - CHAT_MESSAGE
         target_id:
           type: string
           format: uuid
@@ -6576,6 +6727,7 @@ components:
           enum:
           - POST
           - COMMENT
+          - CHAT_MESSAGE
         target_id:
           type: string
           format: uuid
@@ -6772,3 +6924,147 @@ components:
           - SAFETY
           - OTHER
       required: []
+
+    ChatCapabilities:
+      type: object
+      additionalProperties: false
+      properties:
+        can_read:
+          type: boolean
+        can_write:
+          type: boolean
+        can_moderate:
+          type: boolean
+        head:
+          type: string
+          pattern: ^[0-9]+$
+        policy:
+          type: string
+          pattern: ^[0-9]+$
+      required:
+      - can_read
+      - can_write
+      - can_moderate
+      - head
+      - policy
+    ChatMessage:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        experience_id:
+          type: string
+          format: uuid
+        client_message_id:
+          type: string
+          format: uuid
+          nullable: true
+        sequence:
+          type: string
+          pattern: ^[0-9]+$
+        created_at:
+          type: string
+          format: date-time
+        removed:
+          type: boolean
+        body:
+          type: string
+          maxLength: 3000
+          nullable: true
+        author:
+          type: object
+          additionalProperties: false
+          properties:
+            user_id:
+              type: string
+              format: uuid
+            display_name:
+              type: string
+              maxLength: 80
+            handle:
+              type: string
+              maxLength: 30
+              nullable: true
+          required:
+          - user_id
+          - display_name
+          - handle
+          nullable: true
+        can_delete:
+          type: boolean
+        can_moderate:
+          type: boolean
+        change_sequence:
+          type: string
+          pattern: ^[0-9]+$
+      required:
+      - id
+      - experience_id
+      - client_message_id
+      - sequence
+      - created_at
+      - removed
+      - body
+      - author
+      - can_delete
+      - can_moderate
+    ChatPage:
+      type: object
+      additionalProperties: false
+      properties:
+        body_limit:
+          type: integer
+          minimum: 1
+          maximum: 3000
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+        next_cursor:
+          type: string
+          nullable: true
+        resume_cursor:
+          type: string
+        capabilities:
+          $ref: '#/components/schemas/ChatCapabilities'
+        reset:
+          type: boolean
+      required:
+      - body_limit
+      - items
+      - next_cursor
+      - resume_cursor
+      - capabilities
+      - reset
+    ChatSummary:
+      type: object
+      additionalProperties: false
+      properties:
+        capabilities:
+          $ref: '#/components/schemas/ChatCapabilities'
+        resume_cursor:
+          type: string
+        body_limit:
+          type: integer
+      required:
+      - capabilities
+      - resume_cursor
+      - body_limit
+    ChatRemoveInput:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          enum:
+          - SELF
+          - ABUSE
+          - SPAM
+          - PRIVACY
+          - SAFETY
+          - OTHER
+      required:
+      - reason
